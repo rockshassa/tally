@@ -1,0 +1,922 @@
+<title>Tally — UX Mockups</title>
+<style>
+  /* ---------- page tokens (theme-aware) ---------- */
+  :root {
+    --pg-bg: #eef0f4;
+    --pg-surface: #f7f8fa;
+    --pg-ink: #1b2029;
+    --pg-ink-2: #4d5563;
+    --pg-ink-3: #8590a2;
+    --pg-line: #d7dbe3;
+    --pg-accent: #a06614;
+    --pg-accent-2: #1f7d90;
+    --pg-chip-bg: #e4e7ee;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --pg-bg: #0b0d12;
+      --pg-surface: #12151d;
+      --pg-ink: #e8eaf0;
+      --pg-ink-2: #a7aebc;
+      --pg-ink-3: #6b7485;
+      --pg-line: #262b37;
+      --pg-accent: #d99a35;
+      --pg-accent-2: #45b4c9;
+      --pg-chip-bg: #1a1f2a;
+    }
+  }
+  :root[data-theme="dark"] {
+    --pg-bg: #0b0d12;
+    --pg-surface: #12151d;
+    --pg-ink: #e8eaf0;
+    --pg-ink-2: #a7aebc;
+    --pg-ink-3: #6b7485;
+    --pg-line: #262b37;
+    --pg-accent: #d99a35;
+    --pg-accent-2: #45b4c9;
+    --pg-chip-bg: #1a1f2a;
+  }
+  :root[data-theme="light"] {
+    --pg-bg: #eef0f4;
+    --pg-surface: #f7f8fa;
+    --pg-ink: #1b2029;
+    --pg-ink-2: #4d5563;
+    --pg-ink-3: #8590a2;
+    --pg-line: #d7dbe3;
+    --pg-accent: #a06614;
+    --pg-accent-2: #1f7d90;
+    --pg-chip-bg: #e4e7ee;
+  }
+
+  /* ---------- app tokens (fixed: the app's night palette) ---------- */
+  :root {
+    --app-bg: #141821;
+    --app-bg-deep: #0e1118;
+    --app-glass: rgba(255,255,255,0.055);
+    --app-glass-strong: rgba(255,255,255,0.09);
+    --app-line: rgba(255,255,255,0.10);
+    --app-ink: #eef0f5;
+    --app-ink-2: #9aa3b4;
+    --app-ink-3: #626c7e;
+    --amber: #c07e1b;          /* validated chart amber */
+    --amber-bright: #e8a53c;   /* UI glow / buttons */
+    --aqua: #2fa3ba;           /* validated chart aqua */
+    --aqua-bright: #4fc9de;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--pg-bg);
+    color: var(--pg-ink);
+    font-family: ui-serif, "New York", Georgia, "Times New Roman", serif;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+  .sans { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", system-ui, sans-serif; }
+
+  .wrap { max-width: 1120px; margin: 0 auto; padding: 0 24px 96px; }
+
+  /* ---------- header ---------- */
+  header.page { padding: 64px 0 20px; max-width: 60ch; }
+  .eyebrow {
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+    font-size: 12px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase;
+    color: var(--pg-accent); display: flex; align-items: center; gap: 10px;
+  }
+  .logo-tally { display: inline-flex; }
+  h1 {
+    font-size: clamp(30px, 4.5vw, 42px); line-height: 1.12; font-weight: 600;
+    margin: 14px 0 14px; letter-spacing: -0.01em; text-wrap: balance;
+  }
+  .lede { font-size: 17px; color: var(--pg-ink-2); margin: 0 0 18px; }
+  .meta-row { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip {
+    font-family: -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    font-size: 11.5px; font-weight: 600; letter-spacing: 0.02em;
+    background: var(--pg-chip-bg); color: var(--pg-ink-2);
+    border: 1px solid var(--pg-line);
+    padding: 4px 10px; border-radius: 999px; white-space: nowrap;
+  }
+  .chip .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; vertical-align: 1px; }
+
+  /* ---------- sections & figures ---------- */
+  section { margin-top: 56px; }
+  .sec-head { max-width: 62ch; margin-bottom: 8px; }
+  .sec-head h2 { font-size: 24px; font-weight: 600; margin: 0 0 6px; letter-spacing: -0.005em; }
+  .sec-head p { color: var(--pg-ink-2); margin: 0; font-size: 15.5px; }
+  .frames { display: flex; flex-wrap: wrap; gap: 40px 36px; margin-top: 28px; align-items: flex-start; }
+  figure.shot { margin: 0; width: 300px; display: flex; flex-direction: column; gap: 14px; }
+  figcaption { display: flex; flex-direction: column; gap: 4px; }
+  .cap-title-row { display: flex; align-items: baseline; gap: 8px; }
+  .cap-title {
+    font-family: -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    font-weight: 650; font-size: 14.5px; color: var(--pg-ink);
+  }
+  .cap-ref {
+    font-family: -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    font-size: 11px; font-weight: 600; color: var(--pg-accent);
+    border: 1px solid var(--pg-line); border-radius: 999px; padding: 1px 8px;
+  }
+  .cap-note { font-size: 14px; color: var(--pg-ink-2); font-style: italic; }
+
+  /* ---------- phone chrome ---------- */
+  .phone {
+    width: 300px; aspect-ratio: 380 / 812;
+    background: #05060a; border-radius: 46px; padding: 9px;
+    box-shadow: 0 24px 48px -20px rgba(8,10,18,0.5), 0 0 0 1px rgba(255,255,255,0.06) inset;
+    position: relative; flex-shrink: 0;
+  }
+  .screen {
+    width: 100%; height: 100%; border-radius: 38px; overflow: hidden; position: relative;
+    background:
+      radial-gradient(120% 60% at 50% -10%, #1d2432 0%, var(--app-bg) 55%) ,
+      var(--app-bg);
+    color: var(--app-ink);
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+    display: flex; flex-direction: column;
+  }
+  .island {
+    position: absolute; top: 9px; left: 50%; transform: translateX(-50%);
+    width: 82px; height: 22px; background: #05060a; border-radius: 999px; z-index: 30;
+  }
+  .statusbar {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 12px 24px 0; font-size: 12px; font-weight: 600; letter-spacing: 0.02em;
+    height: 34px; flex-shrink: 0; position: relative; z-index: 20;
+  }
+  .statusbar svg { display: block; }
+  .home-bar {
+    position: absolute; bottom: 6px; left: 50%; transform: translateX(-50%);
+    width: 96px; height: 4px; border-radius: 999px; background: rgba(255,255,255,0.35); z-index: 30;
+  }
+
+  /* ---------- shared app components ---------- */
+  .app-body { flex: 1; display: flex; flex-direction: column; padding: 8px 16px 0; min-height: 0; }
+  .glass {
+    background: var(--app-glass); border: 1px solid var(--app-line);
+    border-radius: 18px; backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+  }
+  .tabbar {
+    flex-shrink: 0; margin: 8px 10px 16px;
+    display: flex; justify-content: space-around; align-items: center;
+    padding: 8px 6px; border-radius: 999px;
+    background: rgba(255,255,255,0.06); border: 1px solid var(--app-line);
+    backdrop-filter: blur(14px);
+  }
+  .tab { display: flex; flex-direction: column; align-items: center; gap: 2px; font-size: 8.5px; font-weight: 600; color: var(--app-ink-3); }
+  .tab.active { color: var(--amber-bright); }
+  .tab svg { display: block; }
+  .navrow { display: flex; align-items: center; gap: 6px; padding: 2px 2px 8px; flex-shrink: 0; }
+  .nav-back { color: var(--amber-bright); font-size: 12px; font-weight: 500; display: flex; align-items: center; gap: 2px; }
+  .nav-title { font-size: 19px; font-weight: 700; letter-spacing: -0.01em; }
+  .nav-sub { font-size: 11px; color: var(--app-ink-2); }
+
+  /* ---------- screen: tally ---------- */
+  .today-label { font-size: 11px; font-weight: 600; color: var(--app-ink-3); text-transform: uppercase; letter-spacing: 0.12em; margin: 6px 2px 2px; }
+  .counts { display: flex; gap: 18px; align-items: baseline; margin: 0 2px 10px; }
+  .count-num { font-size: 44px; font-weight: 750; letter-spacing: -0.03em; line-height: 1; font-variant-numeric: tabular-nums; }
+  .count-block { display: flex; flex-direction: column; gap: 3px; }
+  .count-cap { font-size: 10px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; display: flex; align-items: center; gap: 5px; color: var(--app-ink-2); }
+  .swatch { width: 8px; height: 8px; border-radius: 3px; display: inline-block; }
+  .sw-amber { background: var(--amber-bright); }
+  .sw-aqua { background: var(--aqua-bright); }
+
+  .session-card { padding: 10px 12px; display: flex; align-items: center; gap: 10px; margin-bottom: 4px; }
+  .pulse { width: 8px; height: 8px; border-radius: 50%; background: var(--amber-bright); box-shadow: 0 0 0 0 rgba(232,165,60,0.5); flex-shrink: 0; }
+  @media (prefers-reduced-motion: no-preference) {
+    .pulse { animation: pulse 2.2s ease-out infinite; }
+    @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(232,165,60,0.45);} 70% { box-shadow: 0 0 0 9px rgba(232,165,60,0);} 100% { box-shadow: 0 0 0 0 rgba(232,165,60,0);} }
+  }
+  .session-line1 { font-size: 12px; font-weight: 650; }
+  .session-line2 { font-size: 11px; color: var(--app-ink-2); font-variant-numeric: tabular-nums; }
+
+  .big-buttons { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; min-height: 0; }
+  .btn-drink {
+    width: 128px; height: 128px; border-radius: 50%;
+    background: radial-gradient(circle at 32% 28%, #f0b558 0%, var(--amber-bright) 40%, #9c6410 100%);
+    box-shadow: 0 14px 34px -8px rgba(232,165,60,0.45), inset 0 1px 1px rgba(255,255,255,0.5);
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0;
+    color: #1d1405;
+  }
+  .btn-drink .plus { font-size: 44px; font-weight: 300; line-height: 0.9; }
+  .btn-drink .lbl { font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
+  .btn-na {
+    width: 84px; height: 84px; border-radius: 50%;
+    background: radial-gradient(circle at 32% 28%, #7fdaeb 0%, var(--aqua-bright) 45%, #1c7e88 100%);
+    box-shadow: 0 10px 26px -8px rgba(79,201,222,0.4), inset 0 1px 1px rgba(255,255,255,0.5);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    color: #062126;
+  }
+  .btn-na .plus { font-size: 28px; font-weight: 300; line-height: 0.9; }
+  .btn-na .lbl { font-size: 8.5px; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; }
+  .undo-row { display: flex; align-items: center; gap: 8px; }
+  .btn-undo {
+    width: 30px; height: 30px; border-radius: 50%; border: 1px solid var(--app-line);
+    background: var(--app-glass); color: var(--app-ink-2);
+    display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 400;
+  }
+  .hold-hint { font-size: 9.5px; color: var(--app-ink-3); }
+
+  /* ---------- screen: check-in sheet ---------- */
+  .dim { position: absolute; inset: 0; background: rgba(8,10,16,0.6); backdrop-filter: blur(2px); z-index: 10; border-radius: 38px; }
+  .sheet {
+    position: absolute; left: 8px; right: 8px; bottom: 8px; z-index: 15;
+    border-radius: 30px; padding: 10px 16px 24px;
+    background: rgba(32,38,52,0.92); border: 1px solid rgba(255,255,255,0.14);
+    backdrop-filter: blur(20px);
+    display: flex; flex-direction: column; gap: 10px;
+  }
+  .grabber { width: 34px; height: 4px; border-radius: 999px; background: rgba(255,255,255,0.25); margin: 0 auto 2px; }
+  .sheet-kicker { font-size: 11px; color: var(--app-ink-2); text-align: center; }
+  .sheet-venue { font-size: 22px; font-weight: 750; text-align: center; letter-spacing: -0.01em; }
+  .sheet-meta { display: flex; justify-content: center; }
+  .venue-chip { font-size: 10px; font-weight: 600; color: var(--app-ink-2); border: 1px solid var(--app-line); border-radius: 999px; padding: 3px 10px; display: flex; gap: 5px; align-items: center; }
+  .btn-primary {
+    background: linear-gradient(180deg, #eab157, var(--amber-bright) 60%, #a86e12);
+    color: #201603; font-weight: 700; font-size: 14px;
+    border-radius: 14px; padding: 12px; text-align: center;
+    box-shadow: 0 8px 20px -8px rgba(232,165,60,0.5);
+  }
+  .btn-secondary {
+    background: var(--app-glass-strong); border: 1px solid var(--app-line); color: var(--app-ink);
+    font-weight: 600; font-size: 13px; border-radius: 14px; padding: 11px; text-align: center;
+  }
+  .btn-plain { color: var(--app-ink-2); font-size: 12.5px; font-weight: 500; text-align: center; padding: 2px; }
+
+  /* ---------- screen: sessions list ---------- */
+  .sess-card { padding: 11px 13px; margin-bottom: 9px; display: flex; flex-direction: column; gap: 3px; position: relative; }
+  .sess-top { display: flex; align-items: center; gap: 6px; }
+  .sess-venue { font-size: 13px; font-weight: 700; }
+  .sess-date { font-size: 10.5px; color: var(--app-ink-3); margin-left: auto; font-variant-numeric: tabular-nums; }
+  .sess-stats { font-size: 11px; color: var(--app-ink-2); font-variant-numeric: tabular-nums; display: flex; gap: 5px; align-items: center; }
+  .sess-note { font-family: ui-serif, "New York", Georgia, serif; font-style: italic; font-size: 11.5px; color: var(--amber-bright); }
+  .sess-card.na { border-color: rgba(79,201,222,0.35); background: rgba(47,163,186,0.10); }
+  .badge-mini {
+    display: inline-flex; align-items: center; gap: 4px; align-self: flex-start;
+    font-size: 9px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase;
+    color: var(--aqua-bright); border: 1px solid rgba(79,201,222,0.4); border-radius: 999px; padding: 2px 7px; margin-top: 2px;
+  }
+  .pin-ic { color: var(--amber-bright); display: inline-flex; }
+
+  /* ---------- screen: session detail ---------- */
+  .timeline { display: flex; flex-direction: column; margin: 4px 2px 0; }
+  .tl-row { display: flex; align-items: center; gap: 10px; padding: 7px 0; }
+  .tl-time { width: 44px; font-size: 10.5px; color: var(--app-ink-3); font-variant-numeric: tabular-nums; flex-shrink: 0; text-align: right; }
+  .tl-rail { width: 14px; display: flex; flex-direction: column; align-items: center; align-self: stretch; flex-shrink: 0; position: relative; }
+  .tl-rail::before { content: ""; position: absolute; top: 0; bottom: 0; width: 1.5px; background: rgba(255,255,255,0.09); }
+  .tl-dot { width: 10px; height: 10px; border-radius: 50%; position: relative; z-index: 1; border: 2px solid var(--app-bg); }
+  .tl-dot.amber { background: var(--amber-bright); }
+  .tl-dot.aqua { background: var(--aqua-bright); }
+  .tl-label { font-size: 12px; font-weight: 600; }
+  .tl-sub { font-size: 10px; color: var(--app-ink-2); }
+  .pts { margin-left: auto; font-size: 10.5px; font-weight: 700; color: var(--aqua-bright); font-variant-numeric: tabular-nums; }
+  .detail-summary { padding: 10px 12px; display: flex; justify-content: space-between; align-items: center; margin-top: 8px; }
+  .detail-summary .k { font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--app-ink-3); font-weight: 600; }
+  .detail-summary .v { font-size: 14px; font-weight: 750; font-variant-numeric: tabular-nums; }
+
+  /* ---------- share card ---------- */
+  .share-card {
+    width: 300px; border-radius: 22px; padding: 20px 22px;
+    background: radial-gradient(130% 90% at 20% 0%, #232c3e 0%, #12161f 60%), #12161f;
+    border: 1px solid rgba(255,255,255,0.10);
+    color: var(--app-ink);
+    font-family: -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    display: flex; flex-direction: column; gap: 12px;
+    box-shadow: 0 20px 40px -18px rgba(8,10,18,0.5);
+  }
+  .share-head { display: flex; align-items: center; gap: 8px; }
+  .share-venue { font-size: 18px; font-weight: 750; letter-spacing: -0.01em; }
+  .share-date { font-size: 11px; color: var(--app-ink-2); }
+  .share-stats { display: flex; gap: 14px; }
+  .share-stat .n { font-size: 24px; font-weight: 750; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+  .share-stat .l { font-size: 9px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--app-ink-2); display: flex; align-items: center; gap: 4px; }
+  .share-foot { display: flex; justify-content: space-between; align-items: center; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 10px; }
+  .share-badge { font-size: 9.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--amber-bright); display: flex; gap: 5px; align-items: center; }
+  .share-brand { font-size: 10px; font-weight: 700; color: var(--app-ink-3); letter-spacing: 0.1em; text-transform: uppercase; display: flex; gap: 5px; align-items: center; }
+
+  /* ---------- screen: trends ---------- */
+  .seg { display: flex; background: rgba(255,255,255,0.06); border: 1px solid var(--app-line); border-radius: 10px; padding: 2px; margin: 2px 2px 10px; }
+  .seg span { flex: 1; text-align: center; font-size: 11px; font-weight: 600; color: var(--app-ink-2); padding: 5px 0; border-radius: 8px; }
+  .seg .on { background: rgba(255,255,255,0.14); color: var(--app-ink); }
+  .chart-card { padding: 12px 12px 8px; }
+  .chart-title { font-size: 11px; font-weight: 650; margin-bottom: 2px; }
+  .chart-sub { font-size: 9.5px; color: var(--app-ink-3); margin-bottom: 6px; }
+  .legend { display: flex; gap: 12px; margin-top: 6px; flex-wrap: wrap; }
+  .legend .li { display: flex; align-items: center; gap: 5px; font-size: 9px; font-weight: 600; color: var(--app-ink-2); }
+  .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
+  .stat-tile { padding: 9px 11px; }
+  .stat-k { font-size: 8.5px; font-weight: 650; text-transform: uppercase; letter-spacing: 0.08em; color: var(--app-ink-3); }
+  .stat-v { font-size: 17px; font-weight: 750; font-variant-numeric: tabular-nums; letter-spacing: -0.01em; margin-top: 1px; }
+  .stat-d { font-size: 9px; font-weight: 600; margin-top: 1px; }
+  .down { color: var(--aqua-bright); }
+  .neutral-d { color: var(--app-ink-2); }
+
+  /* ---------- screen: you ---------- */
+  .you-hero { display: flex; align-items: center; gap: 14px; padding: 12px 14px; }
+  .ring-wrap { position: relative; width: 74px; height: 74px; flex-shrink: 0; }
+  .ring-txt { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+  .ring-num { font-size: 20px; font-weight: 750; line-height: 1; font-variant-numeric: tabular-nums; }
+  .ring-cap { font-size: 7.5px; font-weight: 650; text-transform: uppercase; letter-spacing: 0.06em; color: var(--app-ink-2); }
+  .you-pts .n { font-size: 26px; font-weight: 750; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+  .you-pts .l { font-size: 10px; color: var(--app-ink-2); font-weight: 600; }
+  .goal-row { padding: 10px 13px; margin-top: 9px; }
+  .goal-k { display: flex; justify-content: space-between; font-size: 10px; font-weight: 600; color: var(--app-ink-2); margin-bottom: 6px; font-variant-numeric: tabular-nums; }
+  .goal-bar { height: 7px; border-radius: 999px; background: rgba(255,255,255,0.08); overflow: hidden; display: flex; }
+  .goal-fill { width: 72%; background: linear-gradient(90deg, var(--aqua), var(--aqua-bright)); border-radius: 999px; }
+  .badges-h { font-size: 11px; font-weight: 650; margin: 14px 2px 8px; }
+  .badge-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .badge-card { padding: 10px 11px; display: flex; flex-direction: column; gap: 3px; }
+  .badge-name { font-size: 11px; font-weight: 700; }
+  .badge-how { font-size: 9px; color: var(--app-ink-2); line-height: 1.35; }
+  .badge-card.amber-glow { border-color: rgba(232,165,60,0.4); }
+  .badge-card.aqua-glow { border-color: rgba(79,201,222,0.4); }
+  .badge-card.locked { opacity: 0.45; }
+  .badge-ic { width: 22px; height: 22px; border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-bottom: 3px; }
+  .bi-amber { background: rgba(232,165,60,0.16); color: var(--amber-bright); }
+  .bi-aqua { background: rgba(79,201,222,0.16); color: var(--aqua-bright); }
+  .bi-mute { background: rgba(255,255,255,0.07); color: var(--app-ink-2); }
+
+  /* ---------- lock screen ---------- */
+  .lockscreen {
+    background: linear-gradient(160deg, #1a2233 0%, #0f1420 45%, #1c1626 100%);
+  }
+  .lock-time { text-align: center; margin-top: 40px; }
+  .lock-date { font-size: 13px; font-weight: 600; color: rgba(255,255,255,0.75); }
+  .lock-clock { font-size: 64px; font-weight: 250; letter-spacing: -0.02em; line-height: 1.05; font-variant-numeric: tabular-nums; color: rgba(255,255,255,0.92); }
+  .notif {
+    margin: 10px 12px 0; border-radius: 20px; padding: 11px 13px;
+    background: rgba(48,54,70,0.72); backdrop-filter: blur(18px);
+    border: 1px solid rgba(255,255,255,0.10);
+    display: flex; flex-direction: column; gap: 7px;
+  }
+  .notif-head { display: flex; align-items: center; gap: 8px; }
+  .app-icon {
+    width: 26px; height: 26px; border-radius: 7px; flex-shrink: 0;
+    background: linear-gradient(150deg, #23293a, #10141d);
+    display: flex; align-items: center; justify-content: center;
+    border: 1px solid rgba(255,255,255,0.12);
+  }
+  .notif-app { font-size: 9px; font-weight: 650; text-transform: uppercase; letter-spacing: 0.08em; color: var(--app-ink-2); }
+  .notif-when { margin-left: auto; font-size: 9.5px; color: var(--app-ink-3); }
+  .notif-title { font-size: 12.5px; font-weight: 700; line-height: 1.3; }
+  .notif-body { font-size: 11.5px; color: var(--app-ink-2); line-height: 1.35; margin-top: -4px; }
+  .notif-actions { display: flex; gap: 7px; }
+  .na-btn { flex: 1; text-align: center; font-size: 11px; font-weight: 650; padding: 7px 4px; border-radius: 10px; background: rgba(255,255,255,0.10); border: 1px solid rgba(255,255,255,0.10); }
+  .na-btn.primary { background: rgba(232,165,60,0.2); border-color: rgba(232,165,60,0.45); color: var(--amber-bright); }
+
+  /* ---------- widgets & watch ---------- */
+  .wallpaper {
+    width: 300px; border-radius: 32px; padding: 22px 18px;
+    background: linear-gradient(155deg, #202a40 0%, #131826 55%, #241d31 100%);
+    display: flex; flex-direction: column; gap: 16px; align-items: center;
+    box-shadow: 0 20px 40px -18px rgba(8,10,18,0.5);
+    border: 1px solid rgba(255,255,255,0.07);
+  }
+  .widget {
+    border-radius: 20px; background: rgba(24,29,40,0.85); border: 1px solid rgba(255,255,255,0.10);
+    backdrop-filter: blur(14px); color: var(--app-ink);
+    font-family: -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    padding: 12px;
+  }
+  .widget.small { width: 132px; height: 132px; display: flex; flex-direction: column; justify-content: space-between; }
+  .widget.medium { width: 272px; height: 132px; display: flex; gap: 12px; }
+  .w-counts { display: flex; gap: 10px; }
+  .w-count .n { font-size: 22px; font-weight: 750; line-height: 1; font-variant-numeric: tabular-nums; }
+  .w-count .l { font-size: 7.5px; font-weight: 650; text-transform: uppercase; letter-spacing: 0.06em; color: var(--app-ink-2); display: flex; align-items: center; gap: 3px; margin-top: 2px; }
+  .w-btns { display: flex; gap: 7px; }
+  .w-btn { flex: 1; border-radius: 10px; text-align: center; padding: 6px 0; font-size: 13px; font-weight: 650; }
+  .w-btn.amber { background: rgba(232,165,60,0.18); color: var(--amber-bright); border: 1px solid rgba(232,165,60,0.35); }
+  .w-btn.aqua { background: rgba(79,201,222,0.15); color: var(--aqua-bright); border: 1px solid rgba(79,201,222,0.3); }
+  .w-left { display: flex; flex-direction: column; justify-content: space-between; width: 108px; flex-shrink: 0; }
+  .w-right { flex: 1; display: flex; flex-direction: column; justify-content: flex-end; gap: 2px; min-width: 0; }
+  .w-spark-cap { font-size: 7.5px; font-weight: 650; text-transform: uppercase; letter-spacing: 0.06em; color: var(--app-ink-3); }
+
+  .watch-wrap { display: flex; flex-direction: column; align-items: center; gap: 0; position: relative; }
+  .watch {
+    width: 196px; height: 238px; border-radius: 56px; background: #05060a; padding: 10px;
+    box-shadow: 0 18px 36px -14px rgba(8,10,18,0.55), 0 0 0 1px rgba(255,255,255,0.07) inset;
+    position: relative;
+  }
+  .watch::after { /* crown */
+    content: ""; position: absolute; right: -5px; top: 62px; width: 6px; height: 30px;
+    border-radius: 3px; background: #1c1f28; box-shadow: 0 0 0 1px rgba(255,255,255,0.08);
+  }
+  .watch-screen {
+    width: 100%; height: 100%; border-radius: 47px; overflow: hidden;
+    background: radial-gradient(120% 80% at 50% 0%, #1b2130 0%, #0b0e15 70%);
+    color: var(--app-ink); font-family: -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    padding: 16px 14px 12px; display: flex; flex-direction: column; gap: 8px;
+  }
+  .watch-top { display: flex; justify-content: space-between; align-items: baseline; }
+  .watch-title { font-size: 10px; font-weight: 700; letter-spacing: 0.08em; color: var(--app-ink-2); text-transform: uppercase; }
+  .watch-time { font-size: 11px; font-weight: 650; color: var(--amber-bright); font-variant-numeric: tabular-nums; }
+  .watch-btn { flex: 1; border-radius: 18px; display: flex; align-items: center; gap: 10px; padding: 0 14px; }
+  .watch-btn.amber { background: rgba(232,165,60,0.16); border: 1px solid rgba(232,165,60,0.35); }
+  .watch-btn.aqua { background: rgba(79,201,222,0.13); border: 1px solid rgba(79,201,222,0.3); }
+  .wb-plus { font-size: 24px; font-weight: 300; }
+  .watch-btn.amber .wb-plus { color: var(--amber-bright); }
+  .watch-btn.aqua .wb-plus { color: var(--aqua-bright); }
+  .wb-txt .n { font-size: 17px; font-weight: 750; line-height: 1; font-variant-numeric: tabular-nums; }
+  .wb-txt .l { font-size: 8px; font-weight: 650; text-transform: uppercase; letter-spacing: 0.06em; color: var(--app-ink-2); }
+  .watch-hint { text-align: center; font-size: 8px; color: var(--app-ink-3); }
+
+  /* ---------- footer ---------- */
+  .endnote { margin-top: 72px; border-top: 1px solid var(--pg-line); padding-top: 20px; max-width: 62ch; color: var(--pg-ink-3); font-size: 13.5px; font-style: italic; }
+
+  @media (max-width: 700px) {
+    .frames { justify-content: center; }
+    header.page { padding-top: 44px; }
+  }
+</style>
+
+<div class="wrap">
+  <header class="page">
+    <div class="eyebrow">
+      <span class="logo-tally" aria-hidden="true">
+        <svg width="26" height="18" viewBox="0 0 26 18"><g stroke="var(--pg-accent)" stroke-width="2.4" stroke-linecap="round"><line x1="3" y1="2" x2="3" y2="16"/><line x1="9" y1="2" x2="9" y2="16"/><line x1="15" y1="2" x2="15" y2="16"/><line x1="21" y1="2" x2="21" y2="16"/><line x1="0" y1="14" x2="24" y2="4"/></g></svg>
+      </span>
+      Tally · UX Mockups
+    </div>
+    <h1>One tap at the center, everything else in orbit</h1>
+    <p class="lede">Nine screens from the Tally spec, rendered in the app's night palette — a drink counter lives in bars, so the UI commits to dark glass. Amber always means an alcoholic drink; aqua always means a non-alcoholic one. That two-hue code carries through every button, Session, chart, widget, and watch tap.</p>
+    <div class="meta-row">
+      <span class="chip"><span class="dot" style="background:#c07e1b"></span>Alcoholic</span>
+      <span class="chip"><span class="dot" style="background:#2fa3ba"></span>Non-alcoholic</span>
+      <span class="chip">iOS 26 · Liquid Glass</span>
+      <span class="chip">watchOS 26</span>
+      <span class="chip">Companion to SPEC.md</span>
+    </div>
+  </header>
+
+  <!-- ============ SECTION 1: CORE LOOP ============ -->
+  <section>
+    <div class="sec-head">
+      <h2>The core loop</h2>
+      <p>Everything the spec calls "one tap, no friction." The counter is the whole home screen; venue confirmation arrives as a sheet you can ignore.</p>
+    </div>
+    <div class="frames">
+
+      <!-- Tally screen -->
+      <figure class="shot">
+        <div class="phone"><div class="screen">
+          <div class="island"></div>
+          <div class="statusbar sans">
+            <span>9:41</span>
+            <span style="display:flex;gap:5px;align-items:center">
+              <svg width="17" height="11" viewBox="0 0 17 11" fill="currentColor"><rect x="0" y="7" width="3" height="4" rx="1"/><rect x="4.5" y="5" width="3" height="6" rx="1"/><rect x="9" y="2.5" width="3" height="8.5" rx="1"/><rect x="13.5" y="0" width="3" height="11" rx="1"/></svg>
+              <svg width="16" height="11" viewBox="0 0 16 11" fill="currentColor"><path d="M8 9.5a1.4 1.4 0 1 0 0 2.8 1.4 1.4 0 0 0 0-2.8zM8 6c-1.7 0-3.2.7-4.3 1.8l1.4 1.4A4.1 4.1 0 0 1 8 8.1c1.1 0 2.1.4 2.9 1.1l1.4-1.4A6.1 6.1 0 0 0 8 6z" transform="translate(0,-2)"/><path d="M8 2C5 2 2.3 3.2.4 5.1l1.4 1.4A8.6 8.6 0 0 1 8 4c2.4 0 4.6 1 6.2 2.5L15.6 5A10.6 10.6 0 0 0 8 2z" transform="translate(0,-2)"/></svg>
+              <svg width="23" height="11" viewBox="0 0 23 11"><rect x="0.5" y="0.5" width="19" height="10" rx="3" fill="none" stroke="currentColor" opacity="0.5"/><rect x="2" y="2" width="13" height="7" rx="1.5" fill="currentColor"/><rect x="21" y="3.5" width="1.6" height="4" rx="0.8" fill="currentColor" opacity="0.5"/></svg>
+            </span>
+          </div>
+          <div class="app-body">
+            <div class="today-label">Today · Wed Aug 13</div>
+            <div class="counts">
+              <div class="count-block"><span class="count-num">3</span><span class="count-cap"><span class="swatch sw-amber"></span>Drinks</span></div>
+              <div class="count-block"><span class="count-num" style="font-size:30px;color:var(--app-ink-2)">2</span><span class="count-cap"><span class="swatch sw-aqua"></span>Non-alc</span></div>
+            </div>
+            <div class="glass session-card">
+              <span class="pulse"></span>
+              <div>
+                <div class="session-line1">Session · The Anchor</div>
+                <div class="session-line2">3 drinks · 1 spacer · 1 h 40 m</div>
+              </div>
+              <svg style="margin-left:auto" width="7" height="12" viewBox="0 0 7 12" fill="none" stroke="var(--app-ink-3)" stroke-width="1.8" stroke-linecap="round"><path d="M1 1l5 5-5 5"/></svg>
+            </div>
+            <div class="big-buttons">
+              <div class="undo-row">
+                <div class="btn-drink"><span class="plus">+</span><span class="lbl">Drink</span></div>
+                <div class="btn-undo">−</div>
+              </div>
+              <div class="undo-row">
+                <div class="btn-na"><span class="plus">+</span><span class="lbl">Water · NA</span></div>
+                <div class="btn-undo" style="width:24px;height:24px;font-size:13px">−</div>
+              </div>
+              <div class="hold-hint">Hold a button to log at an earlier time</div>
+            </div>
+            <div class="tabbar">
+              <div class="tab active"><svg width="16" height="14" viewBox="0 0 16 14"><g stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="2.5" y1="2" x2="2.5" y2="12"/><line x1="7" y1="2" x2="7" y2="12"/><line x1="11.5" y1="2" x2="11.5" y2="12"/><line x1="0.5" y1="10.5" x2="14.5" y2="3.5"/></g></svg>Tally</div>
+              <div class="tab"><svg width="16" height="14" viewBox="0 0 16 14" fill="currentColor"><rect x="1" y="8" width="3.2" height="6" rx="1"/><rect x="6.4" y="4" width="3.2" height="10" rx="1"/><rect x="11.8" y="1" width="3.2" height="13" rx="1"/></svg>Trends</div>
+              <div class="tab"><svg width="15" height="14" viewBox="0 0 15 14" fill="currentColor"><circle cx="7.5" cy="4" r="3"/><path d="M1.5 14a6 6 0 0 1 12 0z"/></svg>You</div>
+            </div>
+          </div>
+          <div class="home-bar"></div>
+        </div></div>
+        <figcaption>
+          <div class="cap-title-row"><span class="cap-title">Tally — the counter</span><span class="cap-ref">§1</span></div>
+          <span class="cap-note">The amber button is the product. Both tallies stay visible, the live Session card tracks the night, and undo is a quiet minus beside each button.</span>
+        </figcaption>
+      </figure>
+
+      <!-- Check-in sheet -->
+      <figure class="shot">
+        <div class="phone"><div class="screen">
+          <div class="island"></div>
+          <div class="statusbar sans"><span>10:22</span><span style="opacity:.7;font-size:10px">●●●</span></div>
+          <div class="app-body" style="opacity:.55">
+            <div class="today-label">Today · Fri Aug 8</div>
+            <div class="counts">
+              <div class="count-block"><span class="count-num">1</span><span class="count-cap"><span class="swatch sw-amber"></span>Drinks</span></div>
+              <div class="count-block"><span class="count-num" style="font-size:30px;color:var(--app-ink-2)">0</span><span class="count-cap"><span class="swatch sw-aqua"></span>Non-alc</span></div>
+            </div>
+            <div class="big-buttons"><div class="btn-drink" style="filter:saturate(.6)"><span class="plus">+</span><span class="lbl">Drink</span></div></div>
+          </div>
+          <div class="dim"></div>
+          <div class="sheet">
+            <div class="grabber"></div>
+            <div class="sheet-kicker">Looks like you're at</div>
+            <div class="sheet-venue">The Anchor</div>
+            <div class="sheet-meta"><span class="venue-chip"><svg width="8" height="11" viewBox="0 0 8 11" fill="currentColor"><path d="M4 0a4 4 0 0 0-4 4c0 3 4 7 4 7s4-4 4-7a4 4 0 0 0-4-4zm0 5.5A1.5 1.5 0 1 1 4 2.5a1.5 1.5 0 0 1 0 3z"/></svg>Bar · 40 m away</span></div>
+            <div class="btn-primary">Check in</div>
+            <div class="btn-secondary">Somewhere else nearby…</div>
+            <div class="btn-plain">Not now</div>
+          </div>
+          <div class="home-bar"></div>
+        </div></div>
+        <figcaption>
+          <div class="cap-title-row"><span class="cap-title">Check-in sheet</span><span class="cap-ref">§2</span></div>
+          <span class="cap-note">Fires once per outing when a single confident POI matches. Confirming tags the whole Session; dismissing stays silent for the night.</span>
+        </figcaption>
+      </figure>
+
+    </div>
+  </section>
+
+  <!-- ============ SECTION 2: SESSIONS ============ -->
+  <section>
+    <div class="sec-head">
+      <h2>Sessions</h2>
+      <p>The product's unit of memory. History is a list of Sessions; each opens into its drink timeline, and notes, pins, or sharing materialize the record (§2, materialize-on-touch).</p>
+    </div>
+    <div class="frames">
+
+      <!-- Sessions list -->
+      <figure class="shot">
+        <div class="phone"><div class="screen">
+          <div class="island"></div>
+          <div class="statusbar sans"><span>9:41</span><span style="opacity:.7;font-size:10px">●●●</span></div>
+          <div class="app-body">
+            <div class="navrow">
+              <span class="nav-back"><svg width="7" height="12" viewBox="0 0 7 12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M6 1L1 6l5 5"/></svg>Today</span>
+              <span class="nav-title" style="margin-left:6px">Sessions</span>
+            </div>
+            <div class="glass sess-card">
+              <div class="sess-top">
+                <span class="pin-ic"><svg width="9" height="12" viewBox="0 0 9 12" fill="currentColor"><path d="M4.5 0C2.6 0 1 1.6 1 3.5c0 .9.4 1.7 1 2.3V8l2.5 4L7 8V5.8c.6-.6 1-1.4 1-2.3C8 1.6 6.4 0 4.5 0z"/></svg></span>
+                <span class="sess-venue">The Anchor</span><span class="sess-date">Fri Aug 8</span>
+              </div>
+              <div class="sess-stats"><span class="swatch sw-amber"></span>4 · <span class="swatch sw-aqua"></span>2 spacers · 2 h 10 m</div>
+              <div class="sess-note">"Dave's birthday"</div>
+            </div>
+            <div class="glass sess-card na">
+              <div class="sess-top"><span class="sess-venue">The Anchor</span><span class="sess-date">Sat Aug 2</span></div>
+              <div class="sess-stats"><span class="swatch sw-amber"></span>0 · <span class="swatch sw-aqua"></span>5 non-alc · 3 h</div>
+              <div class="badge-mini"><svg width="9" height="9" viewBox="0 0 9 9" fill="currentColor"><path d="M4.5 0l1.2 2.8 3 .2-2.3 2 .7 2.9-2.6-1.6L1.9 7.9l.7-2.9-2.3-2 3-.2z"/></svg>Designated Legend</div>
+            </div>
+            <div class="glass sess-card">
+              <div class="sess-top"><span class="sess-venue">Home</span><span class="sess-date">Tue Aug 5</span></div>
+              <div class="sess-stats"><span class="swatch sw-amber"></span>2 · <span class="swatch sw-aqua"></span>1 spacer · 1 h 05 m</div>
+            </div>
+            <div class="glass sess-card">
+              <div class="sess-top"><span class="sess-venue">Golden Tap</span><span class="sess-date">Thu Jul 31</span></div>
+              <div class="sess-stats"><span class="swatch sw-amber"></span>3 · <span class="swatch sw-aqua"></span>3 spacers · 2 h 40 m</div>
+            </div>
+            <div class="glass sess-card" style="opacity:.75">
+              <div class="sess-top"><span class="sess-venue">Home</span><span class="sess-date">Sun Jul 27</span></div>
+              <div class="sess-stats"><span class="swatch sw-amber"></span>1 · <span class="swatch sw-aqua"></span>0 spacers · 45 m</div>
+            </div>
+            <div class="tabbar">
+              <div class="tab active"><svg width="16" height="14" viewBox="0 0 16 14"><g stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="2.5" y1="2" x2="2.5" y2="12"/><line x1="7" y1="2" x2="7" y2="12"/><line x1="11.5" y1="2" x2="11.5" y2="12"/><line x1="0.5" y1="10.5" x2="14.5" y2="3.5"/></g></svg>Tally</div>
+              <div class="tab"><svg width="16" height="14" viewBox="0 0 16 14" fill="currentColor"><rect x="1" y="8" width="3.2" height="6" rx="1"/><rect x="6.4" y="4" width="3.2" height="10" rx="1"/><rect x="11.8" y="1" width="3.2" height="13" rx="1"/></svg>Trends</div>
+              <div class="tab"><svg width="15" height="14" viewBox="0 0 15 14" fill="currentColor"><circle cx="7.5" cy="4" r="3"/><path d="M1.5 14a6 6 0 0 1 12 0z"/></svg>You</div>
+            </div>
+          </div>
+          <div class="home-bar"></div>
+        </div></div>
+        <figcaption>
+          <div class="cap-title-row"><span class="cap-title">History — Sessions list</span><span class="cap-ref">§2</span></div>
+          <span class="cap-note">Pinned and noted Sessions are materialized records; the aqua-tinted card is a zero-alcohol night wearing its badge. Everything else stays computed.</span>
+        </figcaption>
+      </figure>
+
+      <!-- Session detail -->
+      <figure class="shot">
+        <div class="phone"><div class="screen">
+          <div class="island"></div>
+          <div class="statusbar sans"><span>9:41</span><span style="opacity:.7;font-size:10px">●●●</span></div>
+          <div class="app-body">
+            <div class="navrow" style="flex-direction:column;align-items:flex-start;gap:1px">
+              <span class="nav-back"><svg width="7" height="12" viewBox="0 0 7 12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M6 1L1 6l5 5"/></svg>Sessions</span>
+              <span class="nav-title">The Anchor</span>
+              <span class="nav-sub">Friday, Aug 8 · 9:05 – 11:15 pm · <em style="color:var(--amber-bright);font-family:ui-serif,Georgia,serif">"Dave's birthday"</em></span>
+            </div>
+            <div class="timeline">
+              <div class="tl-row"><span class="tl-time">9:05</span><span class="tl-rail"><span class="tl-dot amber"></span></span><span class="tl-label">Drink</span></div>
+              <div class="tl-row"><span class="tl-time">9:32</span><span class="tl-rail"><span class="tl-dot amber"></span></span><span class="tl-label">Drink</span></div>
+              <div class="tl-row"><span class="tl-time">9:58</span><span class="tl-rail"><span class="tl-dot aqua"></span></span><div><div class="tl-label">Water</div><div class="tl-sub">Spacer</div></div><span class="pts">+35</span></div>
+              <div class="tl-row"><span class="tl-time">10:24</span><span class="tl-rail"><span class="tl-dot amber"></span></span><span class="tl-label">Drink</span></div>
+              <div class="tl-row"><span class="tl-time">10:51</span><span class="tl-rail"><span class="tl-dot aqua"></span></span><div><div class="tl-label">Water</div><div class="tl-sub">Spacer</div></div><span class="pts">+35</span></div>
+              <div class="tl-row"><span class="tl-time">11:15</span><span class="tl-rail"><span class="tl-dot amber"></span></span><span class="tl-label">Drink</span></div>
+            </div>
+            <div class="glass detail-summary">
+              <div><div class="k">Session</div><div class="v">4 · 2 spacers</div></div>
+              <div><div class="k">Duration</div><div class="v">2 h 10 m</div></div>
+              <div><div class="k">Points</div><div class="v" style="color:var(--aqua-bright)">+70</div></div>
+            </div>
+            <div style="display:flex;gap:8px;margin-top:10px">
+              <div class="btn-secondary" style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px;font-size:12px">
+                <svg width="11" height="13" viewBox="0 0 11 13" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5.5 1v7M3 3l2.5-2L8 3"/><path d="M1.5 6v5.5h8V6"/></svg>
+                Share card
+              </div>
+              <div class="btn-secondary" style="flex:1;font-size:12px;display:flex;align-items:center;justify-content:center;gap:6px">
+                <svg width="9" height="12" viewBox="0 0 9 12" fill="currentColor"><path d="M4.5 0C2.6 0 1 1.6 1 3.5c0 .9.4 1.7 1 2.3V8l2.5 4L7 8V5.8c.6-.6 1-1.4 1-2.3C8 1.6 6.4 0 4.5 0z"/></svg>
+                Pinned
+              </div>
+            </div>
+            <div style="flex:1"></div>
+            <div class="tabbar">
+              <div class="tab active"><svg width="16" height="14" viewBox="0 0 16 14"><g stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="2.5" y1="2" x2="2.5" y2="12"/><line x1="7" y1="2" x2="7" y2="12"/><line x1="11.5" y1="2" x2="11.5" y2="12"/><line x1="0.5" y1="10.5" x2="14.5" y2="3.5"/></g></svg>Tally</div>
+              <div class="tab"><svg width="16" height="14" viewBox="0 0 16 14" fill="currentColor"><rect x="1" y="8" width="3.2" height="6" rx="1"/><rect x="6.4" y="4" width="3.2" height="10" rx="1"/><rect x="11.8" y="1" width="3.2" height="13" rx="1"/></svg>Trends</div>
+              <div class="tab"><svg width="15" height="14" viewBox="0 0 15 14" fill="currentColor"><circle cx="7.5" cy="4" r="3"/><path d="M1.5 14a6 6 0 0 1 12 0z"/></svg>You</div>
+            </div>
+          </div>
+          <div class="home-bar"></div>
+        </div></div>
+        <figcaption>
+          <div class="cap-title-row"><span class="cap-title">Session detail</span><span class="cap-ref">§2</span></div>
+          <span class="cap-note">The drink timeline with spacers earning their bonus inline. Share and pin both materialize the Session, so this reference can never dangle.</span>
+        </figcaption>
+      </figure>
+
+      <!-- Share card -->
+      <figure class="shot">
+        <div class="share-card">
+          <div class="share-head">
+            <div class="app-icon" style="width:30px;height:30px;border-radius:8px">
+              <svg width="16" height="12" viewBox="0 0 26 18"><g stroke="#e8a53c" stroke-width="3" stroke-linecap="round"><line x1="3" y1="2" x2="3" y2="16"/><line x1="9" y1="2" x2="9" y2="16"/><line x1="15" y1="2" x2="15" y2="16"/><line x1="21" y1="2" x2="21" y2="16"/><line x1="0" y1="14" x2="24" y2="4"/></g></svg>
+            </div>
+            <div>
+              <div class="share-venue">The Anchor</div>
+              <div class="share-date">Friday, August 8 · 2 h 10 m</div>
+            </div>
+          </div>
+          <div class="share-stats">
+            <div class="share-stat"><div class="n">4</div><div class="l"><span class="swatch sw-amber"></span>Drinks</div></div>
+            <div class="share-stat"><div class="n">2</div><div class="l"><span class="swatch sw-aqua"></span>Spacers</div></div>
+            <div class="share-stat"><div class="n">1:2</div><div class="l">NA ratio</div></div>
+          </div>
+          <div class="share-foot">
+            <span class="share-badge"><svg width="10" height="10" viewBox="0 0 9 9" fill="currentColor"><path d="M4.5 0l1.2 2.8 3 .2-2.3 2 .7 2.9-2.6-1.6L1.9 7.9l.7-2.9-2.3-2 3-.2z"/></svg>Pacer</span>
+            <span class="share-brand">Tally</span>
+          </div>
+        </div>
+        <figcaption>
+          <div class="cap-title-row"><span class="cap-title">Share card</span><span class="cap-ref">§2</span></div>
+          <span class="cap-note">A static snapshot for the share sheet — recipients don't have your data and there's no backend, so the export is the artifact.</span>
+        </figcaption>
+      </figure>
+
+    </div>
+  </section>
+
+  <!-- ============ SECTION 3: TRENDS & YOU ============ -->
+  <section>
+    <div class="sec-head">
+      <h2>Trends &amp; You</h2>
+      <p>The reflective surfaces: what the taps add up to, and the game layer that only ever rewards the aqua direction.</p>
+    </div>
+    <div class="frames">
+
+      <!-- Trends -->
+      <figure class="shot">
+        <div class="phone"><div class="screen">
+          <div class="island"></div>
+          <div class="statusbar sans"><span>9:41</span><span style="opacity:.7;font-size:10px">●●●</span></div>
+          <div class="app-body">
+            <div class="navrow"><span class="nav-title">Trends</span></div>
+            <div class="seg"><span>Day</span><span class="on">Week</span><span>Month</span></div>
+            <div class="glass chart-card">
+              <div class="chart-title">Drinks per day</div>
+              <div class="chart-sub">Last 14 days · line is the 7-day average</div>
+              <svg viewBox="0 0 316 132" width="100%" role="img" aria-label="Stacked bars of alcoholic and non-alcoholic drinks per day for 14 days with a 7-day average line">
+                <!-- gridlines -->
+                <g stroke="rgba(255,255,255,0.07)" stroke-width="1">
+                  <line x1="0" y1="14" x2="316" y2="14"/><line x1="0" y1="62" x2="316" y2="62"/><line x1="0" y1="110" x2="316" y2="110"/>
+                </g>
+                <g fill="#626c7e" font-size="8" font-family="system-ui">
+                  <text x="2" y="11">6</text><text x="2" y="59">3</text><text x="2" y="107">0</text>
+                </g>
+                <!-- bars: baseline y=110, 16px per unit; amber bottom, aqua stacked with 2px gap -->
+                <!-- day values (alc,na): 2,1 0,1 1,2 3,1 0,0 2,2 4,1 1,2 0,1 2,3 3,2 0,1 1,2 3,2 -->
+                <g>
+                  <rect x="16"  y="78"  width="13" height="32" rx="2" fill="#c07e1b"/><rect x="16"  y="60"  width="13" height="16" rx="2" fill="#2fa3ba"/>
+                  <rect x="37.5" y="94" width="13" height="16" rx="2" fill="#2fa3ba"/>
+                  <rect x="59"  y="94"  width="13" height="16" rx="2" fill="#c07e1b"/><rect x="59"  y="60"  width="13" height="32" rx="2" fill="#2fa3ba"/>
+                  <rect x="80.5" y="62" width="13" height="48" rx="2" fill="#c07e1b"/><rect x="80.5" y="44" width="13" height="16" rx="2" fill="#2fa3ba"/>
+                  <rect x="123.5" y="78" width="13" height="32" rx="2" fill="#c07e1b"/><rect x="123.5" y="44" width="13" height="32" rx="2" fill="#2fa3ba"/>
+                  <rect x="145" y="46"  width="13" height="64" rx="2" fill="#c07e1b"/><rect x="145" y="28"  width="13" height="16" rx="2" fill="#2fa3ba"/>
+                  <rect x="166.5" y="94" width="13" height="16" rx="2" fill="#c07e1b"/><rect x="166.5" y="60" width="13" height="32" rx="2" fill="#2fa3ba"/>
+                  <rect x="188" y="94"  width="13" height="16" rx="2" fill="#2fa3ba"/>
+                  <rect x="209.5" y="78" width="13" height="32" rx="2" fill="#c07e1b"/><rect x="209.5" y="28" width="13" height="48" rx="2" fill="#2fa3ba"/>
+                  <rect x="231" y="62"  width="13" height="48" rx="2" fill="#c07e1b"/><rect x="231" y="28"  width="13" height="32" rx="2" fill="#2fa3ba"/>
+                  <rect x="252.5" y="94" width="13" height="16" rx="2" fill="#2fa3ba"/>
+                  <rect x="274" y="94"  width="13" height="16" rx="2" fill="#c07e1b"/><rect x="274" y="60"  width="13" height="32" rx="2" fill="#2fa3ba"/>
+                  <rect x="295.5" y="62" width="13" height="48" rx="2" fill="#c07e1b"/><rect x="295.5" y="28" width="13" height="32" rx="2" fill="#2fa3ba"/>
+                </g>
+                <!-- 7-day avg line (total drinks), muted ink -->
+                <polyline points="22.5,76 44,80 65.5,78 87,72 130,70 151.5,64 173,66 194.5,70 216,64 237.5,58 259,62 280.5,60 302,56"
+                  fill="none" stroke="#9aa3b4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" opacity="0.9"/>
+                <circle cx="302" cy="56" r="3" fill="#9aa3b4"/>
+                <!-- direct label on today -->
+                <text x="302" y="20" text-anchor="middle" font-size="9" font-weight="700" fill="#eef0f5" font-family="system-ui">5</text>
+              </svg>
+              <div class="legend">
+                <span class="li"><span class="swatch sw-amber"></span>Alcoholic</span>
+                <span class="li"><span class="swatch sw-aqua"></span>Non-alc</span>
+                <span class="li"><svg width="14" height="4" viewBox="0 0 14 4"><line x1="0" y1="2" x2="14" y2="2" stroke="#9aa3b4" stroke-width="2"/></svg>7-day avg</span>
+              </div>
+            </div>
+            <div class="stat-grid">
+              <div class="glass stat-tile"><div class="stat-k">This week</div><div class="stat-v">12</div><div class="stat-d down">▼ 3 vs last week</div></div>
+              <div class="glass stat-tile"><div class="stat-k">7-day avg</div><div class="stat-v">1.7<span style="font-size:10px;color:var(--app-ink-2)"> /day</span></div><div class="stat-d down">▼ 0.4</div></div>
+              <div class="glass stat-tile"><div class="stat-k">NA ratio</div><div class="stat-v">1.1 : 1</div><div class="stat-d neutral-d">goal 1 : 1 ✓</div></div>
+              <div class="glass stat-tile"><div class="stat-k">Top venue</div><div class="stat-v" style="font-size:13px">The Anchor</div><div class="stat-d neutral-d">6 Sessions</div></div>
+            </div>
+            <div style="flex:1"></div>
+            <div class="tabbar">
+              <div class="tab"><svg width="16" height="14" viewBox="0 0 16 14"><g stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="2.5" y1="2" x2="2.5" y2="12"/><line x1="7" y1="2" x2="7" y2="12"/><line x1="11.5" y1="2" x2="11.5" y2="12"/><line x1="0.5" y1="10.5" x2="14.5" y2="3.5"/></g></svg>Tally</div>
+              <div class="tab active"><svg width="16" height="14" viewBox="0 0 16 14" fill="currentColor"><rect x="1" y="8" width="3.2" height="6" rx="1"/><rect x="6.4" y="4" width="3.2" height="10" rx="1"/><rect x="11.8" y="1" width="3.2" height="13" rx="1"/></svg>Trends</div>
+              <div class="tab"><svg width="15" height="14" viewBox="0 0 15 14" fill="currentColor"><circle cx="7.5" cy="4" r="3"/><path d="M1.5 14a6 6 0 0 1 12 0z"/></svg>You</div>
+            </div>
+          </div>
+          <div class="home-bar"></div>
+        </div></div>
+        <figcaption>
+          <div class="cap-title-row"><span class="cap-title">Trends</span><span class="cap-ref">§4</span></div>
+          <span class="cap-note">Stacked days in the two semantic hues, the 7-day average in neutral ink so it never competes, and stat tiles where the aqua "down" is good news.</span>
+        </figcaption>
+      </figure>
+
+      <!-- You -->
+      <figure class="shot">
+        <div class="phone"><div class="screen">
+          <div class="island"></div>
+          <div class="statusbar sans"><span>9:41</span><span style="opacity:.7;font-size:10px">●●●</span></div>
+          <div class="app-body">
+            <div class="navrow"><span class="nav-title">You</span></div>
+            <div class="glass you-hero">
+              <div class="ring-wrap">
+                <svg width="74" height="74" viewBox="0 0 74 74">
+                  <circle cx="37" cy="37" r="31" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="6"/>
+                  <circle cx="37" cy="37" r="31" fill="none" stroke="#4fc9de" stroke-width="6" stroke-linecap="round"
+                    stroke-dasharray="194.8" stroke-dashoffset="55" transform="rotate(-90 37 37)"/>
+                </svg>
+                <div class="ring-txt"><span class="ring-num">5</span><span class="ring-cap">day streak</span></div>
+              </div>
+              <div class="you-pts">
+                <div class="n">1,240</div>
+                <div class="l">points · all-time</div>
+                <div class="l" style="color:var(--aqua-bright);margin-top:2px">+120 this week</div>
+              </div>
+            </div>
+            <div class="glass goal-row">
+              <div class="goal-k"><span>This week's ratio goal · 1 : 1</span><span>13 NA / 12</span></div>
+              <div class="goal-bar"><div class="goal-fill"></div></div>
+            </div>
+            <div class="badges-h">Badge case</div>
+            <div class="badge-grid">
+              <div class="glass badge-card amber-glow">
+                <div class="badge-ic bi-amber"><svg width="11" height="11" viewBox="0 0 9 9" fill="currentColor"><path d="M4.5 0l1.2 2.8 3 .2-2.3 2 .7 2.9-2.6-1.6L1.9 7.9l.7-2.9-2.3-2 3-.2z"/></svg></div>
+                <div class="badge-name">Pacer</div><div class="badge-how">Alternated drinks all Session</div>
+              </div>
+              <div class="glass badge-card aqua-glow">
+                <div class="badge-ic bi-aqua"><svg width="11" height="11" viewBox="0 0 9 9" fill="currentColor"><path d="M4.5 0l1.2 2.8 3 .2-2.3 2 .7 2.9-2.6-1.6L1.9 7.9l.7-2.9-2.3-2 3-.2z"/></svg></div>
+                <div class="badge-name">Designated Legend</div><div class="badge-how">A bar Session, zero drinks</div>
+              </div>
+              <div class="glass badge-card aqua-glow">
+                <div class="badge-ic bi-aqua"><svg width="11" height="11" viewBox="0 0 11 11" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M5.5 1v4l2.5 2"/><circle cx="5.5" cy="5.5" r="4.5"/></svg></div>
+                <div class="badge-name">Hydration Week</div><div class="badge-how">7-day ratio streak</div>
+              </div>
+              <div class="glass badge-card locked">
+                <div class="badge-ic bi-mute"><svg width="10" height="12" viewBox="0 0 10 12" fill="currentColor"><rect x="1" y="5" width="8" height="6" rx="1.5"/><path d="M3 5V3.5a2 2 0 0 1 4 0V5" fill="none" stroke="currentColor" stroke-width="1.4"/></svg></div>
+                <div class="badge-name">Dry Spell · 30</div><div class="badge-how">30 dry days — 12 to go</div>
+              </div>
+            </div>
+            <div style="flex:1"></div>
+            <div class="tabbar">
+              <div class="tab"><svg width="16" height="14" viewBox="0 0 16 14"><g stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="2.5" y1="2" x2="2.5" y2="12"/><line x1="7" y1="2" x2="7" y2="12"/><line x1="11.5" y1="2" x2="11.5" y2="12"/><line x1="0.5" y1="10.5" x2="14.5" y2="3.5"/></g></svg>Tally</div>
+              <div class="tab"><svg width="16" height="14" viewBox="0 0 16 14" fill="currentColor"><rect x="1" y="8" width="3.2" height="6" rx="1"/><rect x="6.4" y="4" width="3.2" height="10" rx="1"/><rect x="11.8" y="1" width="3.2" height="13" rx="1"/></svg>Trends</div>
+              <div class="tab active"><svg width="15" height="14" viewBox="0 0 15 14" fill="currentColor"><circle cx="7.5" cy="4" r="3"/><path d="M1.5 14a6 6 0 0 1 12 0z"/></svg>You</div>
+            </div>
+          </div>
+          <div class="home-bar"></div>
+        </div></div>
+        <figcaption>
+          <div class="cap-title-row"><span class="cap-title">You — streaks &amp; badges</span><span class="cap-ref">§3</span></div>
+          <span class="cap-note">The whole game layer is aqua-coded: streak ring, ratio goal, badges. Nothing on this screen ever rewards an amber tap.</span>
+        </figcaption>
+      </figure>
+
+    </div>
+  </section>
+
+  <!-- ============ SECTION 4: GLANCEABLES ============ -->
+  <section>
+    <div class="sec-head">
+      <h2>Glanceables</h2>
+      <p>Where Tally lives when the app is closed: Bar Radar on the lock screen, interactive widgets, and the watch — each a full logging surface, never just a mirror.</p>
+    </div>
+    <div class="frames">
+
+      <!-- Lock screen / Bar Radar -->
+      <figure class="shot">
+        <div class="phone"><div class="screen lockscreen">
+          <div class="island"></div>
+          <div class="statusbar sans" style="justify-content:flex-end"><span style="opacity:.7;font-size:10px">●●●</span></div>
+          <div class="lock-time">
+            <div class="lock-date">Friday, August 8</div>
+            <div class="lock-clock">10:19</div>
+          </div>
+          <div style="flex:1"></div>
+          <div class="notif">
+            <div class="notif-head">
+              <div class="app-icon"><svg width="14" height="10" viewBox="0 0 26 18"><g stroke="#e8a53c" stroke-width="3" stroke-linecap="round"><line x1="3" y1="2" x2="3" y2="16"/><line x1="9" y1="2" x2="9" y2="16"/><line x1="15" y1="2" x2="15" y2="16"/><line x1="21" y1="2" x2="21" y2="16"/><line x1="0" y1="14" x2="24" y2="4"/></g></svg></div>
+              <span class="notif-app">Tally · Bar Radar</span><span class="notif-when">now</span>
+            </div>
+            <div class="notif-title">Looks like you're at The Anchor</div>
+            <div class="notif-body">Start a Session?</div>
+            <div class="notif-actions">
+              <span class="na-btn primary">+1 drink</span>
+              <span class="na-btn">Not drinking tonight</span>
+            </div>
+          </div>
+          <div class="notif" style="opacity:.7;margin-bottom:26px">
+            <div class="notif-head">
+              <div class="app-icon"><svg width="14" height="10" viewBox="0 0 26 18"><g stroke="#e8a53c" stroke-width="3" stroke-linecap="round"><line x1="3" y1="2" x2="3" y2="16"/><line x1="9" y1="2" x2="9" y2="16"/><line x1="15" y1="2" x2="15" y2="16"/><line x1="21" y1="2" x2="21" y2="16"/><line x1="0" y1="14" x2="24" y2="4"/></g></svg></div>
+              <span class="notif-app">Tally · Bar Radar</span><span class="notif-when">45m later</span>
+            </div>
+            <div class="notif-title">Still at The Anchor — start a Session?</div>
+          </div>
+          <div class="home-bar"></div>
+        </div></div>
+        <figcaption>
+          <div class="cap-title-row"><span class="cap-title">Bar Radar</span><span class="cap-ref">§2 · §5</span></div>
+          <span class="cap-note">Geofence arrival with a +1 that logs straight from the notification, and the single dwell follow-up 45 minutes later. After that, silence.</span>
+        </figcaption>
+      </figure>
+
+      <!-- Widgets -->
+      <figure class="shot">
+        <div class="wallpaper">
+          <div class="widget small">
+            <div class="w-counts">
+              <div class="w-count"><div class="n">3</div><div class="l"><span class="swatch sw-amber" style="width:6px;height:6px"></span>Drinks</div></div>
+              <div class="w-count"><div class="n" style="color:var(--app-ink-2)">2</div><div class="l"><span class="swatch sw-aqua" style="width:6px;height:6px"></span>NA</div></div>
+            </div>
+            <div class="w-btns"><span class="w-btn amber">+</span><span class="w-btn aqua">+</span></div>
+          </div>
+          <div class="widget medium">
+            <div class="w-left">
+              <div class="w-counts">
+                <div class="w-count"><div class="n">3</div><div class="l"><span class="swatch sw-amber" style="width:6px;height:6px"></span>Drinks</div></div>
+                <div class="w-count"><div class="n" style="color:var(--app-ink-2)">2</div><div class="l"><span class="swatch sw-aqua" style="width:6px;height:6px"></span>NA</div></div>
+              </div>
+              <div class="w-btns"><span class="w-btn amber">+</span><span class="w-btn aqua">+</span></div>
+            </div>
+            <div class="w-right">
+              <span class="w-spark-cap">Last 7 days</span>
+              <svg viewBox="0 0 130 44" width="100%" role="img" aria-label="Seven-day drink count sparkline">
+                <path d="M4 30 L25 34 L46 24 L67 38 L88 20 L109 26 L126 16 L126 44 L4 44 Z" fill="rgba(192,126,27,0.18)"/>
+                <polyline points="4,30 25,34 46,24 67,38 88,20 109,26 126,16" fill="none" stroke="#c07e1b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <circle cx="126" cy="16" r="3" fill="#e8a53c"/>
+              </svg>
+            </div>
+          </div>
+        </div>
+        <figcaption>
+          <div class="cap-title-row"><span class="cap-title">Home-screen widgets</span><span class="cap-ref">§6</span></div>
+          <span class="cap-note">Interactive App Intent buttons log without opening the app. The count saves instantly; venue tagging reconciles later — the tap never waits on GPS.</span>
+        </figcaption>
+      </figure>
+
+      <!-- Watch -->
+      <figure class="shot">
+        <div class="watch-wrap">
+          <div class="watch"><div class="watch-screen">
+            <div class="watch-top"><span class="watch-title">Tally</span><span class="watch-time">10:19</span></div>
+            <div class="watch-btn amber"><span class="wb-plus">+</span><div class="wb-txt"><div class="n">3</div><div class="l">Drinks</div></div></div>
+            <div class="watch-btn aqua"><span class="wb-plus">+</span><div class="wb-txt"><div class="n">2</div><div class="l">Non-alc</div></div></div>
+            <div class="watch-hint">Swipe a count to undo</div>
+          </div></div>
+        </div>
+        <figcaption>
+          <div class="cap-title-row"><span class="cap-title">Watch app</span><span class="cap-ref">§7</span></div>
+          <span class="cap-note">The whole watch app: two buttons and today's counts. Events queue over WatchConnectivity and dedupe by UUID once CloudKit joins in.</span>
+        </figcaption>
+      </figure>
+
+    </div>
+  </section>
+
+  <p class="endnote">Mockups depict the app's fixed night palette; this page follows your light/dark theme. The amber–aqua chart pair (#C07E1B / #2FA3BA) was validated for lightness band, chroma, colorblind separation, and contrast against the app surface. Screens correspond to SPEC.md §1–§7; milestone M1 ships the first frame alone.</p>
+</div>
