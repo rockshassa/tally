@@ -2,7 +2,7 @@
 
 A one-tap counter for alcoholic drinks with automatic time/location capture, venue inference, non-alcoholic drink gamification, trend visualization, notifications, a home-screen widget, and Apple Watch entry.
 
-**Platform:** native iOS 26+ / watchOS 26+, SwiftUI, Liquid Glass design language. Data layer is CloudKit-compatible from day one so iCloud sync is a switch-flip, not a migration (§7).
+**Platform:** native iOS 26+ / watchOS 26+, SwiftUI, Liquid Glass design language. Data layer is CloudKit-compatible from day one so iCloud sync is a switch-flip, not a migration (§8).
 
 ---
 
@@ -223,6 +223,48 @@ Ships as its own milestone, but costs almost nothing because §1's rules were fo
 
 Three tabs: **Tally** (counter + live Session card), **Trends**, **You** (streaks/badges/settings). History — the list of past Sessions, each with an editable drink timeline, venue assignment, note, and pin — lives behind the today count on the Tally tab.
 
+### Onboarding & permissions
+
+Principle: **the counter never sits behind a permission wall.** First run is three screens; every other permission is requested just-in-time, at the moment its feature is obviously useful. iOS shows each system dialog exactly once, so every ask is preceded by an in-app primer with a "Not now" — declining a primer defers the ask without burning the one system prompt.
+
+**First run (three screens, under 30 seconds):**
+
+1. **What Tally is** — one tap, one drink; amber is alcohol, aqua is not.
+2. **Location primer → When-In-Use prompt.** Explains venue tagging in one sentence. Skippable; declining just means untagged events (§2).
+3. **Set Home** — drop a pin, pre-filled from current location when granted. Skippable; available later in Settings.
+
+Then straight to the counter. No notification, Always-location, or HealthKit prompts at first run.
+
+**Just-in-time asks:**
+
+| Permission | Asked when | Primer | If declined |
+|---|---|---|---|
+| Notifications | Right after the first Session closes — a success moment, not a cold start | "Want the weekly digest and pacing nudges?" with the §5 per-category toggles | All categories off; re-enable from Settings |
+| Location Always | Flipping on Bar Radar | The two-tier explainer (§2) before the system upgrade prompt | Bar Radar stays off; nothing else changes |
+| HealthKit read | Tapping the "Connect Health" placeholder card in Trends | "See what drinking does to your activity — on-device only" | Insight cards never appear (§4) |
+| HealthKit write | Its Settings toggle | — | Nothing else affected |
+
+**Etiquette:**
+
+- The weekly digest may use provisional (quiet) notification delivery so the first digest can arrive before any prompt; loud categories always go through the primer.
+- Settings shows live permission status per feature; anything denied at the system level deep-links to the iOS Settings app, since re-prompting is impossible.
+- No nagging: a feature explains what it's missing only where that feature lives — an untagged Session row offers "enable location to tag venues" inline — never as an interrupting popup.
+
+### Settings
+
+Lives on the You tab. Every configurable default named elsewhere in this spec has exactly one home here:
+
+- **Goal:** NA-ratio goal (default 1 : 1, per §3).
+- **Venues:** edit Home (pin + radius); saved venue list — rename, recategorize, per-venue Bar Radar mute; suppressed-places list with un-suppress.
+- **Bar Radar:** master toggle (triggers the Always upgrade flow, §2); discovery sub-toggle (on by default); dwell reminder delay (default 45 min); discovery hours (default 4 pm–2 am); live permission status.
+- **Notifications:** the §5 per-category toggles; quiet-hours window; live permission status.
+- **Health:** connect/disconnect HealthKit reads (§4); write-to-Health toggle (off by default); morning-after Session threshold (default ≥ 2 drinks).
+- **iCloud sync:** toggle (on by default when signed in, §8); last-sync status.
+- **Data:** export everything as CSV/JSON via the share sheet; **Erase all data** (destructive, double-confirm, also clears the CloudKit private database when sync is on).
+- **About:** privacy explainer (what leaves the device: nothing), standard-drink guidelines link.
+
+Permission status rows deep-link to the iOS Settings app whenever a permission was denied at the system level.
+
 Tech: SwiftUI · SwiftData (App Group + CloudKit-ready schema) · WidgetKit + AppIntents · WatchConnectivity · CoreLocation (`CLMonitor` geofencing) + MapKit · Swift Charts · UserNotifications · HealthKit (read: activity; write: alcoholic beverages). No custom backend, no accounts beyond iCloud.
 
 ---
@@ -238,14 +280,14 @@ Tech: SwiftUI · SwiftData (App Group + CloudKit-ready schema) · WidgetKit + Ap
 
 ## 11. Milestones
 
-1. **M1 — Count:** logging UI, SwiftData store with CloudKit-compatible schema, today view, undo, retro-log.
+1. **M1 — Count:** logging UI, SwiftData store with CloudKit-compatible schema, today view, undo, retro-log, first-run onboarding shell (§9).
 2. **M2 — Place:** location fix, home setup, POI inference, check-in flow, Sessions (derivation + live card + History + materialize-on-touch with notes/pins).
 3. **M3 — Widget:** interactive widgets, shared store, reconciliation flow.
 4. **M4 — Watch:** watchOS app, complications, WatchConnectivity mirroring, UUID-dedupe merge.
 5. **M5 — Sync:** enable CloudKit on both targets, venue merge pass, settings toggle.
 6. **M6 — Trends:** charts tab, stat tiles, Session share cards.
 7. **M7 — Play:** points, streaks, badges.
-8. **M8 — Nudge:** notification categories, scheduling, quiet hours.
+8. **M8 — Nudge:** notification categories, scheduling, quiet hours, post-first-Session notification primer, full Settings screen (§9).
 9. **M9 — Radar:** frequented-venue derivation, Always-permission upgrade flow, `CLMonitor` geofences, arrival + dwell notifications with actionable +1, per-venue mute; discovery tier (`CLVisit` visit monitoring, POI matching, hour/frequency gating, suppression list).
 10. **M10 — Insights:** HealthKit read permission flow, correlation engine with statistical guardrails, Trends insight cards + morning-after chart, Activity insight notifications, background delivery.
 
