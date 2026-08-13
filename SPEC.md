@@ -46,6 +46,12 @@ Session (materialized-on-touch — most Sessions are never persisted; see §2)
   venue         Venue?
   note          String?           // "Dave's birthday"
   pinned        Bool              // default false
+
+SuppressedPlace (discovery-tier "don't ask here" — see §2)
+  id            UUID
+  latitude/longitude  Double
+  radiusMeters  Double            // default 75
+  mapItemID     String?
 ```
 
 Storage: **SwiftData in an App Group container** shared by the app and widget extension.
@@ -88,9 +94,11 @@ Storage: **SwiftData in an App Group container** shared by the app and widget ex
 - **Sharing:** share-sheet snapshot — a rendered card (image or text) with venue, date, counts, spacers, duration, and badges earned. Sharing materializes the Session; the card itself is a static export, since recipients don't have your data and there's no backend to host a live view.
 - Manual split/merge of Sessions is out of scope for v1.
 
-### Bar Radar — frequented-venue detection
+### Bar Radar — proactive venue detection
 
-Once the app has accumulated venue history, it proactively notices you're at a place you drink at and reminds you to track. This is the one feature that needs **Always** location — everything else runs on When-In-Use — so it's a separate, clearly-explained opt-in ("Bar Radar") that triggers the permission upgrade only when enabled.
+Bar Radar notices you're somewhere worth tracking and prompts before you've logged anything. It has **two tiers sharing one prompt-and-suppression machinery**: precise geofences at bars you frequent, and opt-in discovery of bars you've never logged. This is the one feature that needs **Always** location — everything else runs on When-In-Use — so it's a separate, clearly-explained opt-in that triggers the permission upgrade only when enabled.
+
+**Tier 1 — Frequented venues (geofences)**
 
 - **Frequented** = a venue with ≥ 3 Sessions in the trailing 90 days, derived from the event log (never stored, per §1). Home and muted venues are excluded.
 - The app registers OS geofences (`CLMonitor` circular conditions) for the top frequented venues by recency, staying under the system's ~20-region cap. Geofence evaluation is done by the OS on-device — the app receives entry/exit events only, never a location stream.
@@ -99,7 +107,16 @@ Once the app has accumulated venue history, it proactively notices you're at a p
   - **Not drinking tonight** — suppresses all further prompts for this visit.
 - **Dwell follow-up:** at entry, schedule a second notification for +45 min (configurable): *"Still at The Anchor — start a Session?"* It's cancelled if any drink gets logged or the exit event fires first. **One follow-up maximum per visit** — after that, silence.
 - Exit followed by re-entry within 2 h counts as the same visit (stepping outside shouldn't re-trigger the arrival prompt).
-- Controls: global Bar Radar toggle, per-venue mute (also offered as an action on the arrival notification after repeated dismissals), and it never applies to Home.
+
+**Tier 2 — Discovery ("Discover new bars", its own sub-toggle, on by default when Bar Radar is enabled)**
+
+- **Mechanism:** OS visit monitoring (`CLVisit`) — the low-power service that fires when the system decides you've arrived somewhere and lingered. On a visit event, the app runs the same MapKit POI lookup as check-in; a **single confident nightlife candidate** within the visit's accuracy radius fires the same *"start a Session?"* prompt. No candidate, or an ambiguous cluster → the event is discarded on the spot.
+- **Expected latency:** visit events land 10–20 minutes into a stay (occasionally on departure). Discovery behaves like a dwell reminder, not an arrival ping — geofence immediacy stays exclusive to Tier 1.
+- **False-positive gating:** plausible hours only (default 4 pm–2 am, configurable), max 3 discovery prompts per week, never inside the Home geofence, never at suppressed places.
+- **"Not a bar / don't ask here"** is a first-class action on discovery prompts — it writes a `SuppressedPlace` (§1) and that spot goes permanently quiet. Two plain dismissals at the same spot auto-suppress it.
+- **Graduation:** a confirmed Session at a discovered bar creates the Venue and counts toward frequented status — discovery is Tier 1's on-ramp. Three Sessions later the bar earns its own geofence.
+
+Controls: the global Bar Radar toggle governs both tiers; discovery is additionally gated by its own sub-toggle. Per-venue mute (also offered on the arrival notification after repeated dismissals) covers Tier 1; neither tier ever applies to Home.
 
 ---
 
@@ -128,6 +145,21 @@ A "Trends" tab built on Swift Charts:
 - **Session stats:** average drinks per Session, Sessions per week, longest Session, best-paced Session (highest spacer ratio).
 - Stat tiles: this week vs last week, longest dry streak, current streak, most frequent venue.
 
+### Health insights (HealthKit)
+
+Opt-in cross-reference of drinking against activity data, to answer one question: **is drinking eating into your activity?**
+
+- **Reads** (each individually grantable in the HealthKit permission sheet): exercise minutes, active energy, step count, and workouts. Sleep and resting heart rate are deliberately out of scope for v1 (see Open questions).
+- **Correlation engine — runs entirely on-device**, comparing you only against your own baseline:
+  - *Morning-after:* activity on days following a Session of ≥ 2 alcoholic drinks (threshold configurable) vs days following dry days.
+  - *Weekly drift:* trailing 4-week exercise trend against drink totals — flags when a rising drink trend co-occurs with a falling activity trend.
+  - *Workout displacement:* whether workout frequency drops in weeks with more Sessions.
+- **Statistical guardrails:** an insight is shown only when there's enough data (≥ 8 drinking-day and ≥ 8 dry-day comparisons in the trailing 90 days) *and* the effect is meaningful (≥ 20% difference). Weak or noisy correlations produce silence, not filler — no insight is better than a spurious one.
+- **Framing:** insights state correlations in your own numbers and never claim causation or prescribe: *"After 3+ drink Sessions, your next-day exercise averages 12 min vs your usual 34."* The §5 tone rules apply — facts, no shame.
+- **Surfaces:** insight cards at the top of the Trends tab; a morning-after comparison chart (drinking-day-after vs dry-day-after activity, side by side); and the Activity insight notification category (§5).
+- **Refresh:** HealthKit background delivery (`HKObserverQuery`) re-runs the engine as new activity data arrives; insights are recomputed, never persisted, per §1's derive-don't-store rule.
+- **Absence is fine:** no HealthKit permission, or no correlation found, simply means the cards don't appear. Nothing else in the app depends on this feature.
+
 ---
 
 ## 5. Notifications
@@ -142,8 +174,10 @@ All local (no server), **opt-in per category**, with quiet-hours respect. Notifi
 | Streak protection | Evening of a day that would break a streak | "5-day streak on the line — log some water." |
 | Bar Radar arrival | Geofence entry at a frequented bar (§2) | "Looks like you're at The Anchor — start a Session?" |
 | Bar Radar dwell | 45 min after arrival, still there, nothing logged | "Still at The Anchor — start a Session?" |
+| Bar Radar discovery | Visit detected at a bar never logged before (§2), max 3/week | "Looks like you're at The Salty Dog — start a Session?" |
+| Activity insight | New qualifying correlation from the health-insights engine (§4), at most one per week | "Your exercise minutes run 40% lower in weeks with 10+ drinks." |
 
-Tone throughout: neutral-to-encouraging, never shaming. Upward-trend alerts state facts ("up 20% vs last month") without judgment. Quiet hours apply to every category except the two Bar Radar ones — bar hours *are* quiet hours, and those prompts are the feature.
+Tone throughout: neutral-to-encouraging, never shaming. Upward-trend alerts state facts ("up 20% vs last month") without judgment. Quiet hours apply to every category except the Bar Radar ones — bar hours *are* quiet hours, and those prompts are the feature.
 
 ---
 
@@ -189,16 +223,16 @@ Ships as its own milestone, but costs almost nothing because §1's rules were fo
 
 Three tabs: **Tally** (counter + live Session card), **Trends**, **You** (streaks/badges/settings). History — the list of past Sessions, each with an editable drink timeline, venue assignment, note, and pin — lives behind the today count on the Tally tab.
 
-Tech: SwiftUI · SwiftData (App Group + CloudKit-ready schema) · WidgetKit + AppIntents · WatchConnectivity · CoreLocation (`CLMonitor` geofencing) + MapKit · Swift Charts · UserNotifications. No custom backend, no accounts beyond iCloud.
+Tech: SwiftUI · SwiftData (App Group + CloudKit-ready schema) · WidgetKit + AppIntents · WatchConnectivity · CoreLocation (`CLMonitor` geofencing) + MapKit · Swift Charts · UserNotifications · HealthKit (read: activity; write: alcoholic beverages). No custom backend, no accounts beyond iCloud.
 
 ---
 
 ## 10. Privacy & health posture
 
 - All data on-device or in the user's private iCloud database. No analytics, no third-party SDKs, no custom server.
-- Location is captured only at the moment of logging. The one exception is opt-in Bar Radar (§2): Always permission is requested only when that feature is enabled, geofences are evaluated by the OS on-device, and the app receives entry/exit events at chosen venues — never a continuous location stream. Disabling Bar Radar drops back to When-In-Use.
-- Optional **HealthKit** write: `numberOfAlcoholicBeverages` (off by default).
-- Not a medical device; no health claims. Settings links to standard-drink guidelines.
+- Location is captured only at the moment of logging. The exception is opt-in Bar Radar (§2), which requests Always permission only when enabled. Tier 1 registers geofences at chosen venues, evaluated by the OS — the app receives entry/exit events only. The discovery tier (on by default once Bar Radar is enabled, with its own toggle to turn off) additionally uses OS visit monitoring, which reports places you linger so the app can match them against bar POIs on-device; non-matches are discarded immediately and never stored. The Bar Radar opt-in flow describes both tiers before requesting the permission upgrade. Neither tier involves a continuous location stream, and disabling Bar Radar drops back to When-In-Use.
+- **HealthKit**, both directions optional and off by default: write `numberOfAlcoholicBeverages`; read activity metrics for health insights (§4). HealthKit data is never written to the app's own store or to CloudKit — the insights engine reads each device's local HealthKit store at computation time and persists nothing (HealthKit handles its own cross-device sync). Revoking the permission removes the insight surfaces and nothing else.
+- Not a medical device; no health claims. Insights report correlations in the user's own data, never diagnoses or medical advice. Settings links to standard-drink guidelines.
 
 ---
 
@@ -212,7 +246,8 @@ Tech: SwiftUI · SwiftData (App Group + CloudKit-ready schema) · WidgetKit + Ap
 6. **M6 — Trends:** charts tab, stat tiles, Session share cards.
 7. **M7 — Play:** points, streaks, badges.
 8. **M8 — Nudge:** notification categories, scheduling, quiet hours.
-9. **M9 — Radar:** frequented-venue derivation, Always-permission upgrade flow, `CLMonitor` geofences, arrival + dwell notifications with actionable +1, per-venue mute.
+9. **M9 — Radar:** frequented-venue derivation, Always-permission upgrade flow, `CLMonitor` geofences, arrival + dwell notifications with actionable +1, per-venue mute; discovery tier (`CLVisit` visit monitoring, POI matching, hour/frequency gating, suppression list).
+10. **M10 — Insights:** HealthKit read permission flow, correlation engine with statistical guardrails, Trends insight cards + morning-after chart, Activity insight notifications, background delivery.
 
 Each milestone ships a usable app; M1 alone is already the core product.
 
@@ -222,4 +257,5 @@ Each milestone ships a usable app; M1 alone is already the core product.
 
 - **Drink subtypes / standard-drink sizes?** v1 treats every alcoholic drink as 1 unit. Tracking beer/wine/spirits or ABV-adjusted units adds a second tap — against the one-button ethos. Could be an optional long-press picker later.
 - **Watch-first pacing haptics?** Beyond mirrored notifications, the watch could fire its own gentle haptic for pacing nudges even when the phone is present. Deferred until M8.
+- **Sleep & resting heart rate insights?** Natural extensions of the M10 engine (drinking vs sleep duration/quality, morning resting HR), but they read as more medical than activity minutes and deserve their own framing pass. Revisit after M10 ships.
 - **Android?** Not in scope; native iOS assumed.
