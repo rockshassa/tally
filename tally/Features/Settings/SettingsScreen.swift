@@ -689,6 +689,7 @@ public struct SettingsScreen: View {
         // no longer exists.
         service.cancelAll()
         service.resetSchedulingHistory()
+        ActivityInsightScheduler.shared.resetSchedulingHistory()
 
         exportBundle = nil
         refreshExport()

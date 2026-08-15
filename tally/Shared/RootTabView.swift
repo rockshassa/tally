@@ -24,7 +24,7 @@ struct RootTabView: View {
 
             Tab("Trends", systemImage: "chart.bar.xaxis", value: RootTab.trends) {
                 NavigationStack {
-                    TrendsScreen()
+                    TrendsScreen { HealthInsightsSection() }
                 }
                 .accessibilityIdentifier(A11y.Tab.trends)
             }
