@@ -234,7 +234,8 @@ struct TallyScreen: View {
     // MARK: - Logging (SPEC §1)
 
     private func log(_ type: DrinkType) {
-        guard let event = try? EventStore.logDrink(
+        // Log-and-mirror in one call so watch mirroring can't be forgotten (SPEC §7).
+        guard let snapshot = try? PhoneConnectivityService.shared.logDrink(
             type: type,
             timestamp: Date(),
             source: TallyRuntime.eventSource,
@@ -245,15 +246,15 @@ struct TallyScreen: View {
 
         // Everything below this line happens *after* the tally has already moved.
         attachLocationThenOfferCheckIn(
-            eventID: event.id,
+            eventID: snapshot.id,
             type: type,
-            timestamp: event.timestamp
+            timestamp: snapshot.timestamp
         )
     }
 
     /// SPEC §1: retro-logged events carry no location, by construction.
     private func logRetroactively(_ type: DrinkType, at timestamp: Date) {
-        try? EventStore.logDrink(
+        try? PhoneConnectivityService.shared.logDrink(
             type: type,
             timestamp: timestamp,
             source: TallyRuntime.eventSource,
@@ -264,9 +265,9 @@ struct TallyScreen: View {
 
     /// SPEC §1: removes the most recent event of that type today; no-op at zero.
     private func undo(_ type: DrinkType) {
-        let removed = (try? EventStore.undoMostRecent(type: type, in: modelContext)) ?? false
+        let removedID = (try? PhoneConnectivityService.shared.undoMostRecent(type: type, in: modelContext)) ?? nil
         // No haptic when nothing happened — the silence *is* the feedback.
-        if removed { undoTrigger += 1 }
+        if removedID != nil { undoTrigger += 1 }
     }
 
     // MARK: - One-shot fix + the `place` seam

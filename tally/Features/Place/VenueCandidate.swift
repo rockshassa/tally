@@ -102,7 +102,7 @@ nonisolated public struct VenueCandidate: Identifiable, Hashable, Sendable {
 /// Everything the check-in sheet needs, and nothing it doesn't (SPEC §2 step 3).
 ///
 /// The integrator's `checkInSheet(context:)` slot is handed one of these.
-nonisolated public struct CheckInContext: Identifiable, Hashable, Sendable {
+nonisolated public struct CheckInPrompt: Identifiable, Hashable, Sendable {
 
     /// The derived Session this check-in would tag. Also the sheet's identity —
     /// one prompt per outing, never one per drink (SPEC §2).
@@ -157,7 +157,7 @@ nonisolated public enum VenueInferenceOutcome: Hashable, Sendable {
     case sessionMemory(UUID?)
 
     /// Step 3: a single confident candidate. The sheet should be offered.
-    case prompt(CheckInContext)
+    case prompt(CheckInPrompt)
 
     /// Step 4: ambiguous or nothing found — coordinates only, assignable later
     /// from History.
