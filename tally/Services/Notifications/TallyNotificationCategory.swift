@@ -135,8 +135,8 @@ public enum TallyNotificationCategory: String, CaseIterable, Identifiable, Codab
     /// this side.
     public var isImplemented: Bool {
         switch self {
-        case .weeklyDigest, .trendAlert, .pacingNudge, .streakProtection, .activityInsight: true
-        case .barRadarArrival, .barRadarDwell, .barRadarDiscovery: false
+        case .weeklyDigest, .trendAlert, .pacingNudge, .streakProtection, .activityInsight,
+             .barRadarArrival, .barRadarDwell, .barRadarDiscovery: true
         }
     }
 

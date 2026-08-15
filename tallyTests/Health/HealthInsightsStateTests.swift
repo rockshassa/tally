@@ -1,6 +1,7 @@
 import Foundation
 import Testing
 import TallyKit
+import UserNotifications
 @testable import tally
 
 /// The other half of PLAN Gate 3's SPEC §4 line — *"revoking the read permission

@@ -32,7 +32,8 @@ struct TallyApp: App {
         container = Self.openStore()
         slots = PlaceFeatureSlots(container: container, permissions: permissions)
         PhoneConnectivityService.shared.activate()
-        NotificationService.shared.activate()
+        NotificationService.shared.activate(additionalCategories: RadarService.notificationCategories)
+        NotificationService.shared.actionHandler = { RadarService.handleAction($0) }
     }
 
     var body: some Scene {
@@ -43,6 +44,7 @@ struct TallyApp: App {
                 .venueReconciliation()
                 .tallySyncCoordination()
                 .notificationsPrimer(permissions: permissions)
+                .barRadarCoordination(permissions: permissions)
                 .preferredColorScheme(.dark)
                 .tint(TallyColor.amberBright)
         }

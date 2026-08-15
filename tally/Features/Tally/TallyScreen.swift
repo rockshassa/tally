@@ -218,7 +218,8 @@ struct TallyScreen: View {
     private var activeSession: DerivedSession? {
         deriver.activeSession(
             events: events.map(\.snapshot),
-            materialized: materializedSessions.map(\.snapshot)
+            materialized: materializedSessions.map(\.snapshot),
+            venueExits: RadarService.shared.venueExits()
         )
     }
 
@@ -246,6 +247,8 @@ struct TallyScreen: View {
 
         // SPEC §5: the pacing nudge watches the in-Session drink cadence.
         NotificationService.shared.sessionDidLogDrink(type: type, in: modelContext, at: snapshot.timestamp)
+        // SPEC §2: a logged drink cancels any pending Bar Radar dwell reminder.
+        RadarService.shared.sessionDidLogDrink(at: snapshot.timestamp)
 
         // Everything below this line happens *after* the tally has already moved.
         attachLocationThenOfferCheckIn(
