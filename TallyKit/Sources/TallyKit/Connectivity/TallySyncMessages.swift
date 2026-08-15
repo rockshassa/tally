@@ -2,7 +2,7 @@
 //  TallySyncMessages.swift
 //  The WatchConnectivity wire format shared by the phone and the watch.
 //
-//  ⚠️ MIRRORED SOURCE — this file is byte-identical to its twin:
+//  Promoted into TallyKit at Gate 2.5 — the single shared implementation.
 //
 //        tally/Services/Connectivity/TallySyncMessages.swift
 //        TallyWatch/Connectivity/TallySyncMessages.swift
@@ -17,7 +17,6 @@
 //
 
 import Foundation
-import TallyKit
 
 // MARK: - Tombstone
 
