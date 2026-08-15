@@ -99,14 +99,91 @@ struct CloudKitSafetyTests {
         #expect(venue.category == .other)
     }
 
-    @Test("The sync switch is off, and the private-database container is named")
-    func cloudKitIsOffButWired() {
-        // Wave 2 flips exactly this one value (SPEC §8).
-        #expect(TallyStore.cloudKitMode == .disabled)
+    @Test("The private-database container is named, and never a shared or public one")
+    func cloudKitContainerIsWired() {
         #expect(TallyStore.cloudKitContainerIdentifier.hasPrefix("iCloud."))
         #expect(
             CloudKitMode.privateDatabase(containerIdentifier: TallyStore.cloudKitContainerIdentifier).isEnabled
         )
+        #expect(CloudKitMode.disabled.isEnabled == false)
+    }
+
+    /// Wave 2 turned the switch from a hardcoded `.disabled` into a resolved
+    /// value (SPEC §8). Every input is injected, so the decision table is
+    /// asserted without a signed-in device or an App Group.
+    @Test("The sync switch resolves per SPEC §8")
+    func syncSwitchDecisionTable() {
+        let suiteName = "cloudkit-safety-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        let enabled = CloudKitMode.privateDatabase(
+            containerIdentifier: TallyStore.cloudKitContainerIdentifier
+        )
+
+        // Never chosen + signed in → on by default.
+        #expect(
+            TallyStore.resolvedCloudKitMode(
+                defaults: defaults, accountIsAvailable: true, processMirrors: true
+            ) == enabled
+        )
+
+        // Signed out stays local, and the app stays fully functional.
+        #expect(
+            TallyStore.resolvedCloudKitMode(
+                defaults: defaults, accountIsAvailable: false, processMirrors: true
+            ) == .disabled
+        )
+
+        // An app extension never owns the mirror (the widget has no entitlement).
+        #expect(
+            TallyStore.resolvedCloudKitMode(
+                defaults: defaults, accountIsAvailable: true, processMirrors: false
+            ) == .disabled
+        )
+
+        // Explicitly off in Settings.
+        defaults.set(false, forKey: TallyStore.syncPreferenceKey)
+        #expect(
+            TallyStore.resolvedCloudKitMode(
+                defaults: defaults, accountIsAvailable: true, processMirrors: true
+            ) == .disabled
+        )
+
+        // Explicitly back on — and an explicit yes outranks an unreadable
+        // account token, so a device whose `ubiquityIdentityToken` is nil can
+        // still be told to sync.
+        defaults.set(true, forKey: TallyStore.syncPreferenceKey)
+        #expect(
+            TallyStore.resolvedCloudKitMode(
+                defaults: defaults, accountIsAvailable: true, processMirrors: true
+            ) == enabled
+        )
+        #expect(
+            TallyStore.resolvedCloudKitMode(
+                defaults: defaults, accountIsAvailable: false, processMirrors: true
+            ) == enabled
+        )
+
+        // …but an extension is still never the mirror, whatever the preference.
+        #expect(
+            TallyStore.resolvedCloudKitMode(
+                defaults: defaults, accountIsAvailable: true, processMirrors: false
+            ) == .disabled
+        )
+    }
+
+    @Test("The override wins over the resolved value")
+    func syncSwitchOverride() {
+        let original = TallyStore.cloudKitModeOverride
+        defer { TallyStore.cloudKitModeOverride = original }
+
+        TallyStore.cloudKitModeOverride = .disabled
+        #expect(TallyStore.cloudKitMode == .disabled)
+
+        let enabled = CloudKitMode.privateDatabase(containerIdentifier: "iCloud.test")
+        TallyStore.cloudKitModeOverride = enabled
+        #expect(TallyStore.cloudKitMode == enabled)
     }
 
     @Test("The App Group id derives from the app bundle id")
