@@ -6,8 +6,63 @@
 	objectVersion = 90;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		A10000000000000000000013 /* TallyWidget.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = A10000000000000000000001 /* TallyWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		A10000000000000000000014 /* TallyWatch.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = A10000000000000000000002 /* TallyWatch.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		A10000000000000000000015 /* TallyKit in Frameworks */ = {isa = PBXBuildFile; productRef = A10000000000000000000023 /* TallyKit */; };
+		A10000000000000000000016 /* TallyKit in Frameworks */ = {isa = PBXBuildFile; productRef = A10000000000000000000024 /* TallyKit */; };
+		A10000000000000000000017 /* TallyKit in Frameworks */ = {isa = PBXBuildFile; productRef = A10000000000000000000025 /* TallyKit */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		A10000000000000000000019 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 000000000000000000000000 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = A10000000000000000000009;
+			remoteInfo = TallyWidget;
+		};
+		A1000000000000000000001B /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 000000000000000000000000 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = A1000000000000000000000A;
+			remoteInfo = TallyWatch;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		A10000000000000000000011 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				A10000000000000000000013 /* TallyWidget.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A10000000000000000000012 /* Embed Watch Content */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "$(CONTENTS_FOLDER_PATH)/Watch";
+			dstSubfolderSpec = 16;
+			files = (
+				A10000000000000000000014 /* TallyWatch.app in Embed Watch Content */,
+			);
+			name = "Embed Watch Content";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
 /* Begin PBXFileReference section */
 		000000000000000000000120 /* tally.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = tally.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		A10000000000000000000001 /* TallyWidget.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = TallyWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		A10000000000000000000002 /* TallyWatch.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = TallyWatch.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		A10000000000000000000006 /* tally.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = tally.entitlements; sourceTree = "<group>"; };
+		A10000000000000000000007 /* TallyWidget.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = TallyWidget.entitlements; sourceTree = "<group>"; };
+		A10000000000000000000008 /* TallyWatch.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = TallyWatch.entitlements; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -16,13 +71,40 @@
 			path = tally;
 			sourceTree = "<group>";
 		};
+		A10000000000000000000003 /* TallyWidget */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = TallyWidget;
+			sourceTree = "<group>";
+		};
+		A10000000000000000000004 /* TallyWatch */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = TallyWatch;
+			sourceTree = "<group>";
+		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
 		000000000000000130000000 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			files = (
+				A10000000000000000000015 /* TallyKit in Frameworks */,
 			);
+		};
+		A1000000000000000000000C /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A10000000000000000000016 /* TallyKit in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A1000000000000000000000F /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A10000000000000000000017 /* TallyKit in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXFrameworksBuildPhase section */
 
@@ -31,6 +113,9 @@
 			isa = PBXGroup;
 			children = (
 				000000000000000000000010 /* tally */,
+				A10000000000000000000003 /* TallyWidget */,
+				A10000000000000000000004 /* TallyWatch */,
+				A10000000000000000000005 /* Entitlements */,
 				000000000000000000000020 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -39,8 +124,20 @@
 			isa = PBXGroup;
 			children = (
 				000000000000000000000120 /* tally.app */,
+				A10000000000000000000001 /* TallyWidget.appex */,
+				A10000000000000000000002 /* TallyWatch.app */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		A10000000000000000000005 /* Entitlements */ = {
+			isa = PBXGroup;
+			children = (
+				A10000000000000000000006 /* tally.entitlements */,
+				A10000000000000000000007 /* TallyWidget.entitlements */,
+				A10000000000000000000008 /* TallyWatch.entitlements */,
+			);
+			path = Entitlements;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -53,15 +150,70 @@
 				000000000000000120000000 /* Sources */,
 				000000000000000130000000 /* Frameworks */,
 				000000000000000140000000 /* Resources */,
+				A10000000000000000000011 /* Embed Foundation Extensions */,
+				A10000000000000000000012 /* Embed Watch Content */,
 			);
 			buildRules = (
+			);
+			dependencies = (
+				A10000000000000000000018 /* PBXTargetDependency */,
+				A1000000000000000000001A /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				000000000000000000000010 /* tally */,
 			);
 			name = tally;
+			packageProductDependencies = (
+				A10000000000000000000023 /* TallyKit */,
+			);
 			productName = MyApp;
 			productReference = 000000000000000000000120 /* tally.app */;
+			productType = "com.apple.product-type.application";
+		};
+		A10000000000000000000009 /* TallyWidget */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A1000000000000000000001C /* Build configuration list for PBXNativeTarget "TallyWidget" */;
+			buildPhases = (
+				A1000000000000000000000B /* Sources */,
+				A1000000000000000000000C /* Frameworks */,
+				A1000000000000000000000D /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				A10000000000000000000003 /* TallyWidget */,
+			);
+			name = TallyWidget;
+			packageProductDependencies = (
+				A10000000000000000000024 /* TallyKit */,
+			);
+			productName = TallyWidget;
+			productReference = A10000000000000000000001 /* TallyWidget.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
+		A1000000000000000000000A /* TallyWatch */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A1000000000000000000001F /* Build configuration list for PBXNativeTarget "TallyWatch" */;
+			buildPhases = (
+				A1000000000000000000000E /* Sources */,
+				A1000000000000000000000F /* Frameworks */,
+				A10000000000000000000010 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				A10000000000000000000004 /* TallyWatch */,
+			);
+			name = TallyWatch;
+			packageProductDependencies = (
+				A10000000000000000000025 /* TallyKit */,
+			);
+			productName = TallyWatch;
+			productReference = A10000000000000000000002 /* TallyWatch.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
@@ -77,6 +229,12 @@
 					000000000000000100000000 = {
 						CreatedOnToolsVersion = 26.3;
 					};
+					A10000000000000000000009 = {
+						CreatedOnToolsVersion = 26.3;
+					};
+					A1000000000000000000000A = {
+						CreatedOnToolsVersion = 26.3;
+					};
 				};
 			};
 			buildConfigurationList = 000000000000000010000000 /* Build configuration list for PBXProject "tally" */;
@@ -88,12 +246,17 @@
 			);
 			mainGroup = 000000000000000000000001;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				A10000000000000000000022 /* XCLocalSwiftPackageReference "TallyKit" */,
+			);
 			preferredProjectObjectVersion = 90;
 			productRefGroup = 000000000000000000000020 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
 				000000000000000100000000 /* tally */,
+				A10000000000000000000009 /* TallyWidget */,
+				A1000000000000000000000A /* TallyWatch */,
 			);
 		};
 /* End PBXProject section */
@@ -104,6 +267,20 @@
 			files = (
 			);
 		};
+		A1000000000000000000000D /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A10000000000000000000010 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
@@ -112,7 +289,34 @@
 			files = (
 			);
 		};
+		A1000000000000000000000B /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A1000000000000000000000E /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		A10000000000000000000018 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = A10000000000000000000009 /* TallyWidget */;
+			targetProxy = A10000000000000000000019 /* PBXContainerItemProxy */;
+		};
+		A1000000000000000000001A /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = A1000000000000000000000A /* TallyWatch */;
+			targetProxy = A1000000000000000000001B /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		000000000000000011000000 /* Debug configuration for PBXProject "tally" */ = {
@@ -250,12 +454,17 @@
 		000000000000000111000000 /* Debug configuration for PBXNativeTarget "tally" */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = Entitlements/tally.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSHealthShareUsageDescription = "Tally compares your activity against your own drinking history, entirely on this device, to show whether drinking is eating into it. Nothing is uploaded.";
+				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "Tally can save the drinks you log to Health as alcoholic beverages. This stays off until you turn it on.";
+				INFOPLIST_KEY_NSLocationAlwaysAndWhenInUseUsageDescription = "Bar Radar lets iOS tell Tally when you arrive at or leave a bar you have saved, so it can offer to start a session. Tally receives arrival and departure events only, never a continuous location stream.";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Tally takes one location fix at the moment you log a drink, so it can tag the venue. It never tracks you in between, and the fix never leaves your device.";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
@@ -288,12 +497,17 @@
 		000000000000000112000000 /* Release configuration for PBXNativeTarget "tally" */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = Entitlements/tally.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSHealthShareUsageDescription = "Tally compares your activity against your own drinking history, entirely on this device, to show whether drinking is eating into it. Nothing is uploaded.";
+				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "Tally can save the drinks you log to Health as alcoholic beverages. This stays off until you turn it on.";
+				INFOPLIST_KEY_NSLocationAlwaysAndWhenInUseUsageDescription = "Bar Radar lets iOS tell Tally when you arrive at or leave a bar you have saved, so it can offer to start a session. Tally receives arrival and departure events only, never a continuous location stream.";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Tally takes one location fix at the moment you log a drink, so it can tag the venue. It never tracks you in between, and the fix never leaves your device.";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
@@ -323,6 +537,136 @@
 			};
 			name = Release;
 		};
+		A1000000000000000000001D /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = Entitlements/TallyWidget.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = Tally;
+				INFOPLIST_KEY_NSExtensionPointIdentifier = "com.apple.widgetkit-extension";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Tally takes one location fix at the moment you log a drink, so it can tag the venue. It never tracks you in between, and the fix never leaves your device.";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "devplaceholder.$(PROJECT_UNIQUE_VALUE:identifier).tally.TallyWidget";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				REGISTER_APP_GROUPS = YES;
+				SDKROOT = auto;
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+		A1000000000000000000001E /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = Entitlements/TallyWidget.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = Tally;
+				INFOPLIST_KEY_NSExtensionPointIdentifier = "com.apple.widgetkit-extension";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Tally takes one location fix at the moment you log a drink, so it can tag the venue. It never tracks you in between, and the fix never leaves your device.";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "devplaceholder.$(PROJECT_UNIQUE_VALUE:identifier).tally.TallyWidget";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				REGISTER_APP_GROUPS = YES;
+				SDKROOT = auto;
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
+		A10000000000000000000020 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = Entitlements/TallyWatch.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = Tally;
+				INFOPLIST_KEY_NSHealthShareUsageDescription = "Tally compares your activity against your own drinking history, entirely on this device, to show whether drinking is eating into it. Nothing is uploaded.";
+				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "Tally can save the drinks you log to Health as alcoholic beverages. This stays off until you turn it on.";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Tally takes one location fix at the moment you log a drink, so it can tag the venue. It never tracks you in between, and the fix never leaves your device.";
+				INFOPLIST_KEY_WKApplication = YES;
+				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = "devplaceholder.$(PROJECT_UNIQUE_VALUE:identifier).tally";
+				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "devplaceholder.$(PROJECT_UNIQUE_VALUE:identifier).tally.watchkitapp";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				REGISTER_APP_GROUPS = YES;
+				SDKROOT = auto;
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SUPPORTED_PLATFORMS = "watchos watchsimulator";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 4;
+			};
+			name = Debug;
+		};
+		A10000000000000000000021 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = Entitlements/TallyWatch.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = Tally;
+				INFOPLIST_KEY_NSHealthShareUsageDescription = "Tally compares your activity against your own drinking history, entirely on this device, to show whether drinking is eating into it. Nothing is uploaded.";
+				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "Tally can save the drinks you log to Health as alcoholic beverages. This stays off until you turn it on.";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Tally takes one location fix at the moment you log a drink, so it can tag the venue. It never tracks you in between, and the fix never leaves your device.";
+				INFOPLIST_KEY_WKApplication = YES;
+				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = "devplaceholder.$(PROJECT_UNIQUE_VALUE:identifier).tally";
+				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "devplaceholder.$(PROJECT_UNIQUE_VALUE:identifier).tally.watchkitapp";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				REGISTER_APP_GROUPS = YES;
+				SDKROOT = auto;
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SUPPORTED_PLATFORMS = "watchos watchsimulator";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 4;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -342,7 +686,47 @@
 			);
 			defaultConfigurationName = Release;
 		};
+		A1000000000000000000001C /* Build configuration list for PBXNativeTarget "TallyWidget" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A1000000000000000000001D /* Debug */,
+				A1000000000000000000001E /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		A1000000000000000000001F /* Build configuration list for PBXNativeTarget "TallyWatch" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A10000000000000000000020 /* Debug */,
+				A10000000000000000000021 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 /* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		A10000000000000000000022 /* XCLocalSwiftPackageReference "TallyKit" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = TallyKit;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		A10000000000000000000023 /* TallyKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = TallyKit;
+		};
+		A10000000000000000000024 /* TallyKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = TallyKit;
+		};
+		A10000000000000000000025 /* TallyKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = TallyKit;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 000000000000000000000000 /* Project object */;
 }
