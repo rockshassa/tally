@@ -677,13 +677,11 @@ public struct SettingsScreen: View {
     /// SPEC §9: *"Erase all data (destructive, double-confirm, also clears the
     /// CloudKit private database when sync is on)."*
     private func eraseAllData() {
+        // Stop the merge passes before the wipe so a remote-change callback can't
+        // race the deletes; the deletions themselves mirror to CloudKit.
+        SyncCoordinator.shared.stop()
         try? EventStore.eraseAll(in: modelContext)
-
-        // TODO(sync workstream): SPEC §9 also requires clearing the CloudKit
-        // private database when sync is on. The local wipe above deletes the
-        // records, but with sync enabled those deletions have to propagate — and
-        // a device that is offline at erase time must not resurrect the log on
-        // its next pull. Hook that here; everything else about erase is done.
+        SyncSettings.shared.clearSyncHistory()
 
         // Preferences survive on purpose: SPEC §9's erase is about *data*, and a
         // user who wipes their log has not asked for their ratio goal to move.

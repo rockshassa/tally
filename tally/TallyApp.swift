@@ -32,6 +32,7 @@ struct TallyApp: App {
         container = Self.openStore()
         slots = PlaceFeatureSlots(container: container, permissions: permissions)
         PhoneConnectivityService.shared.activate()
+        NotificationService.shared.activate()
     }
 
     var body: some Scene {
@@ -40,6 +41,8 @@ struct TallyApp: App {
                 .modelContainer(container)
                 .featureSlots(slots)
                 .venueReconciliation()
+                .tallySyncCoordination()
+                .notificationsPrimer(permissions: permissions)
                 .preferredColorScheme(.dark)
                 .tint(TallyColor.amberBright)
         }
