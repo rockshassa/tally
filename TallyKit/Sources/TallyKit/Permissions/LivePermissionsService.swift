@@ -198,8 +198,9 @@ extension LivePermissionsService: CLLocationManagerDelegate {
     nonisolated public func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
         // CoreLocation delivers on the queue the manager was created on, which is
         // the main queue here.
+        let status = manager.authorizationStatus
         MainActor.assumeIsolated {
-            self.resumeLocationContinuation(with: LocationAuthorization(manager.authorizationStatus))
+            self.resumeLocationContinuation(with: LocationAuthorization(status))
         }
     }
 }
