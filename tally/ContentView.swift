@@ -17,7 +17,7 @@ struct ContentView: View {
     var body: some View {
         Group {
             if hasCompletedOnboarding {
-                RootTabView()
+                RootTabView(permissions: permissions)
             } else {
                 OnboardingFlow(permissions: permissions) {
                     hasCompletedOnboarding = true

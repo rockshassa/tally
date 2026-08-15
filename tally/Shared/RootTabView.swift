@@ -1,5 +1,6 @@
 import SwiftData
 import SwiftUI
+import TallyKit
 
 /// The three-tab shell (SPEC §9): Tally, Trends, You.
 ///
@@ -7,6 +8,8 @@ import SwiftUI
 /// it lives behind the today count on the Tally tab, which is why the Tally tab
 /// owns the navigation stack.
 struct RootTabView: View {
+
+    let permissions: any PermissionsService
 
     @State private var selection: RootTab = .tally
 
@@ -21,16 +24,19 @@ struct RootTabView: View {
 
             Tab("Trends", systemImage: "chart.bar.xaxis", value: RootTab.trends) {
                 NavigationStack {
-                    TrendsPlaceholderView()
-                        .navigationTitle("Trends")
+                    TrendsScreen()
                 }
                 .accessibilityIdentifier(A11y.Tab.trends)
             }
 
             Tab("You", systemImage: "person.crop.circle", value: RootTab.you) {
                 NavigationStack {
-                    YouPlaceholderView()
-                        .navigationTitle("You")
+                    YouScreen(settingsDestination: AnyView(
+                        SettingsScreen(
+                            permissions: permissions,
+                            syncSection: AnyView(SyncSettingsSection())
+                        )
+                    ))
                 }
                 .accessibilityIdentifier(A11y.Tab.you)
             }
@@ -46,7 +52,7 @@ enum RootTab: Hashable {
 }
 
 #Preview {
-    RootTabView()
+    RootTabView(permissions: MockPermissionsService())
         .preferredColorScheme(.dark)
         .modelContainer(PreviewStore.container)
 }

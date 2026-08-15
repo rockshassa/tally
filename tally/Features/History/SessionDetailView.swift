@@ -228,6 +228,12 @@ public struct SessionDetailView: View {
             ) {
                 activeSheet = .venue
             }
+
+            // SPEC §2: sharing materializes the Session first (materialize-on-touch).
+            SessionShareButton(session: session, venue: model.venue(for: session)) { touched in
+                _ = model.materialize(touched)
+                model.reload()
+            }
         }
     }
 

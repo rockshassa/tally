@@ -244,6 +244,9 @@ struct TallyScreen: View {
 
         logTrigger += 1
 
+        // SPEC §5: the pacing nudge watches the in-Session drink cadence.
+        NotificationService.shared.sessionDidLogDrink(type: type, in: modelContext, at: snapshot.timestamp)
+
         // Everything below this line happens *after* the tally has already moved.
         attachLocationThenOfferCheckIn(
             eventID: snapshot.id,

@@ -17,7 +17,7 @@ enum YouA11y {
     static let ratioGoalBar = "you.ratioGoalBar"
     static let badgeCase = "you.badgeCase"
     static let emptyState = "you.emptyState"
-    static let settingsButton = "you.settingsButton"
+    static let settingsButton = "settings.gearButton"  // SettingsUITests navigates by this
 
     /// One per badge tile: `you.badge.pacer`, `you.badge.drySpell30`, …
     static func badge(_ badge: Badge) -> String {
