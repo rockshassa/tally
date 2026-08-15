@@ -52,6 +52,7 @@ struct OnboardingFlow: View {
             }
         }
         .animation(.snappy(duration: 0.3), value: page)
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier(A11y.Onboarding.flow)
     }
 
@@ -123,6 +124,7 @@ struct OnboardingFlow: View {
                 .accessibilityIdentifier(A11y.Onboarding.welcomeContinueButton)
         }
         .padding(TallyMetrics.screenPadding)
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier(A11y.Onboarding.welcomePage)
     }
 
@@ -175,6 +177,7 @@ struct OnboardingFlow: View {
                 page = .home
             }
         )
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier(A11y.Onboarding.locationPrimer)
     }
 
@@ -182,6 +185,7 @@ struct OnboardingFlow: View {
 
     private var homePage: some View {
         featureSlots.onboardingHomeSetup(onDone: onFinish)
+            .accessibilityElement(children: .contain)
             .accessibilityIdentifier(A11y.Onboarding.homeSetupPage)
     }
 }

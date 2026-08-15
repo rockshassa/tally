@@ -54,6 +54,7 @@ struct TallyScreen: View {
             .padding(.top, 8)
             .padding(.bottom, 12)
         }
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier(A11y.Tally.screen)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar(.hidden, for: .navigationBar)
@@ -325,6 +326,7 @@ struct HistorySlotScreen: View {
 
     var body: some View {
         featureSlots.historyDestination()
+            .accessibilityElement(children: .contain)
             .accessibilityIdentifier(A11y.History.screen)
     }
 }

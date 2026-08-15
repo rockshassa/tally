@@ -90,6 +90,7 @@ public struct YouScreen: View {
         }
         .scrollIndicators(.hidden)
         .background(TallyColor.pageGradient.ignoresSafeArea())
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier(YouA11y.screen)
         .navigationTitle("You")
         .navigationBarTitleDisplayMode(.large)
@@ -139,6 +140,7 @@ public struct YouScreen: View {
         .padding(.vertical, 14)
         .frame(maxWidth: .infinity, alignment: .leading)
         .tallyGlassCard()
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier(YouA11y.hero)
     }
 

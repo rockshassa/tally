@@ -105,6 +105,13 @@ final class SettingsUITests: XCTestCase {
         (toggle.value as? String) == "1"
     }
 
+    /// Flips a SwiftUI `Toggle`. The switch's accessibility frame spans the
+    /// whole Form row, so a center `tap()` lands on the label and does nothing —
+    /// aim at the trailing edge, where the knob actually is.
+    private func flip(_ toggle: XCUIElement) {
+        toggle.coordinate(withNormalizedOffset: CGVector(dx: 0.93, dy: 0.5)).tap()
+    }
+
     /// Scrolls until an element is hittable — Settings is longer than a phone.
     @discardableResult
     private func reveal(_ element: XCUIElement, maxSwipes: Int = 8) -> Bool {
@@ -141,7 +148,7 @@ final class SettingsUITests: XCTestCase {
         XCTAssertTrue(reveal(digestToggle), "SPEC §5's weekly digest needs a toggle (SPEC §9).")
         XCTAssertTrue(isOn(digestToggle), "Categories start on; the primer and authorization are what gate delivery.")
 
-        digestToggle.tap()
+        flip(digestToggle)
         XCTAssertFalse(isOn(digestToggle), "Tapping the toggle should turn the category off.")
 
         // Kill it. A value that only lives in memory is not a setting.
@@ -163,7 +170,7 @@ final class SettingsUITests: XCTestCase {
         XCTAssertTrue(reveal(quietHoursToggle))
         XCTAssertTrue(isOn(quietHoursToggle), "Quiet hours ship on (SPEC §5).")
 
-        quietHoursToggle.tap()
+        flip(quietHoursToggle)
         XCTAssertFalse(isOn(quietHoursToggle))
 
         app.terminate()
@@ -183,7 +190,7 @@ final class SettingsUITests: XCTestCase {
         XCTAssertTrue(reveal(quietHoursToggle))
         XCTAssertTrue(app.datePickers["settings.notifications.quietHoursStart"].waitForExistence(timeout: 3))
 
-        quietHoursToggle.tap()
+        flip(quietHoursToggle)
         XCTAssertFalse(
             app.datePickers["settings.notifications.quietHoursStart"].exists,
             "With quiet hours off, the window pickers should not be offered."
@@ -225,7 +232,7 @@ final class SettingsUITests: XCTestCase {
         XCTAssertTrue(isOn(pacingToggle))
         XCTAssertTrue(isOn(digestToggle))
 
-        pacingToggle.tap()
+        flip(pacingToggle)
 
         XCTAssertFalse(isOn(pacingToggle))
         XCTAssertTrue(isOn(digestToggle), "SPEC §5 is opt-in *per category*.")
@@ -242,14 +249,14 @@ final class SettingsUITests: XCTestCase {
         XCTAssertTrue(reveal(eraseButton))
         eraseButton.tap()
 
-        let firstConfirm = app.buttons["settings.data.eraseConfirmButton"]
+        let firstConfirm = app.buttons["settings.data.eraseConfirmButton"].firstMatch
         XCTAssertTrue(
             firstConfirm.waitForExistence(timeout: 3),
             "Erase must confirm before doing anything (SPEC §9: destructive, double-confirm)."
         )
         firstConfirm.tap()
 
-        let finalConfirm = app.buttons["settings.data.eraseFinalButton"]
+        let finalConfirm = app.buttons["settings.data.eraseFinalButton"].firstMatch
         XCTAssertTrue(
             finalConfirm.waitForExistence(timeout: 3),
             "One confirmation is not a double-confirm."

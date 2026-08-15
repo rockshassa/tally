@@ -131,6 +131,7 @@ struct PermissionPrimer: View {
         }
         .padding(TallyMetrics.screenPadding)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier(identifierPrefix + A11yPrimerSuffix.root)
     }
 

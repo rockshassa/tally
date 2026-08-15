@@ -182,6 +182,7 @@ public struct HomeSetupView: View {
                     .foregroundStyle(PlacePalette.backgroundDeep)
             }
             .buttonStyle(.plain)
+            .accessibilityIdentifier("homeSetup.saveButton")
 
             if let onSkip {
                 Button("Not now", action: onSkip)
@@ -189,6 +190,7 @@ public struct HomeSetupView: View {
                     .foregroundStyle(PlacePalette.ink3)
                     .frame(maxWidth: .infinity)
                     .buttonStyle(.plain)
+                    .accessibilityIdentifier("homeSetup.skipButton")
             }
         }
         .padding(.horizontal, 22)

@@ -224,10 +224,11 @@ final class TallyUITests: XCTestCase {
         XCTAssertTrue(app.buttons["onboarding.location.grantButton"].exists)
         notNow.tap()
 
-        // Screen 3: the Home-setup slot (placeholder until `place` lands).
-        let done = app.buttons["onboarding.homeSetup.doneButton"]
-        XCTAssertTrue(done.waitForExistence(timeout: 5), "Screen 3: Set Home, skippable.")
-        done.tap()
+        // Screen 3: the Home-setup slot — the real HomeSetupView since Gate 1,
+        // skippable via its "Not now" per SPEC §9.
+        let skipHome = app.buttons["homeSetup.skipButton"]
+        XCTAssertTrue(skipHome.waitForExistence(timeout: 5), "Screen 3: Set Home, skippable.")
+        skipHome.tap()
 
         XCTAssertTrue(logDrinkButton.waitForExistence(timeout: 5), "First run ends on the counter.")
     }
@@ -253,11 +254,12 @@ final class TallyUITests: XCTestCase {
         XCTAssertTrue(app.tabBars.buttons["Trends"].exists)
         XCTAssertTrue(app.tabBars.buttons["You"].exists)
 
+        // Wave 2 replaced the placeholders with the real screens.
         app.tabBars.buttons["Trends"].tap()
-        XCTAssertTrue(element("placeholder.trends").waitForExistence(timeout: 5))
+        XCTAssertTrue(element("trends.screen").waitForExistence(timeout: 5))
 
         app.tabBars.buttons["You"].tap()
-        XCTAssertTrue(element("placeholder.you").waitForExistence(timeout: 5))
+        XCTAssertTrue(element("you.screen").waitForExistence(timeout: 5))
 
         app.tabBars.buttons["Tally"].tap()
         XCTAssertTrue(logDrinkButton.waitForExistence(timeout: 5))
