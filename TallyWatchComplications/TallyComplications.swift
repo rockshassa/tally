@@ -184,10 +184,14 @@ struct TallyTotalComplication: Widget {
     }
 }
 
-/// Intentionally **not** `@main` — see the integrator note at the top of the
-/// file. Adding `@main` here is the last step of moving this into its own
-/// widget-extension target.
+@main
 struct TallyWatchComplicationBundle: WidgetBundle {
+
+    init() {
+        // Separate process: point at the shared App Group store the watch app
+        // now uses (see TallyWatchApp). Events read-only here, no writes.
+        TallyRuntime.configure(eventSource: .watch, storeConfiguration: .default)
+    }
 
     var body: some Widget {
         TallyTotalComplication()
