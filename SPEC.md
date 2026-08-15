@@ -267,6 +267,10 @@ Permission status rows deep-link to the iOS Settings app whenever a permission w
 
 Tech: SwiftUI · SwiftData (App Group + CloudKit-ready schema) · WidgetKit + AppIntents · WatchConnectivity · CoreLocation (`CLMonitor` geofencing) + MapKit · Swift Charts · UserNotifications · HealthKit (read: activity; write: alcoholic beverages). No custom backend, no accounts beyond iCloud.
 
+### App icon
+
+The icon is the **Japanese tally symbol 正** — the five-stroke character used across Japan and China to count in fives, the counterpart of Western four-lines-and-a-slash. Rendered as hand-drawn strokes in the app's amber on the dark night ground (not a typeset glyph — it should read as marks made in stroke order, brush-weighted). The pun does double duty: five strokes is five counted, and 正 literally means "correct, proper" — the right note for a moderation app. Variants: the App Store and home-screen icon is always the completed character; the partial-stroke states (one stroke through four) are available as a brand motif elsewhere — e.g., a progress or count treatment — never as the icon itself. Tinted/dark/clear icon appearances derive from the same mark.
+
 ---
 
 ## 10. Privacy & health posture
