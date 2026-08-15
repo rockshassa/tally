@@ -21,6 +21,8 @@ struct TallyApp: App {
     /// making a second one would mean a second authorization delegate.
     private let permissions: any PermissionsService = LivePermissionsService()
 
+    private let slots: PlaceFeatureSlots
+
     init() {
         OnboardingState.applyLaunchArgumentOverrides()
         TallyRuntime.configure(
@@ -28,16 +30,16 @@ struct TallyApp: App {
             storeConfiguration: LaunchArguments.storeConfiguration
         )
         container = Self.openStore()
+        slots = PlaceFeatureSlots(container: container, permissions: permissions)
+        PhoneConnectivityService.shared.activate()
     }
 
     var body: some Scene {
         WindowGroup {
             ContentView(permissions: permissions)
                 .modelContainer(container)
-                // INTEGRATOR: wire the `place` workstream here —
-                //     .featureSlots(PlaceFeatureSlots())
-                // Until then every slot takes its default: no check-in prompt,
-                // placeholder History, skippable Home setup.
+                .featureSlots(slots)
+                .venueReconciliation()
                 .preferredColorScheme(.dark)
                 .tint(TallyColor.amberBright)
         }

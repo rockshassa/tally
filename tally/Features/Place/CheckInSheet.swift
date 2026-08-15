@@ -11,7 +11,7 @@ import TallyKit
 /// `checkInSheet(context:)` slot unmodified.
 public struct CheckInSheet: View {
 
-    private let context: CheckInContext
+    private let context: CheckInPrompt
     private let onConfirm: (VenueCandidate) -> Void
     private let onDismiss: () -> Void
 
@@ -19,7 +19,7 @@ public struct CheckInSheet: View {
     @State private var detent: PresentationDetent = .height(400)
 
     public init(
-        context: CheckInContext,
+        context: CheckInPrompt,
         onConfirm: @escaping (VenueCandidate) -> Void,
         onDismiss: @escaping () -> Void
     ) {
@@ -31,7 +31,7 @@ public struct CheckInSheet: View {
     /// Convenience wiring for the common case: let the coordinator do the
     /// writing, and just tell the host when the sheet is finished.
     public init(
-        context: CheckInContext,
+        context: CheckInPrompt,
         coordinator: PlaceCoordinator,
         onFinish: @escaping () -> Void = {}
     ) {
@@ -212,7 +212,7 @@ public struct CheckInPromptModifier: ViewModifier {
         }
     }
 
-    private var binding: Binding<CheckInContext?> {
+    private var binding: Binding<CheckInPrompt?> {
         Binding(
             get: { coordinator.pendingCheckIn },
             set: { if $0 == nil { coordinator.dismissCheckIn() } }
@@ -282,9 +282,9 @@ struct VenueCandidateRow: View {
 
 #Preview("Check-in") {
     let fix = LocationFix(latitude: 51.5079, longitude: -0.0877, horizontalAccuracy: 12)
-    return Color.black.sheet(isPresented: .constant(true)) {
+    Color.black.sheet(isPresented: .constant(true)) {
         CheckInSheet(
-            context: CheckInContext(
+            context: CheckInPrompt(
                 sessionID: UUID(),
                 eventID: UUID(),
                 primary: VenueCandidate(

@@ -18,7 +18,7 @@ public final class PlaceCoordinator {
 
     /// Non-nil when the check-in sheet should be showing. The integrator's
     /// `checkInSheet(context:)` slot binds to this.
-    public private(set) var pendingCheckIn: CheckInContext?
+    public private(set) var pendingCheckIn: CheckInPrompt?
 
     /// The venue tagged onto the most recent logged drink, if any. Lets the
     /// Tally screen name the place on its live Session card without re-deriving.
@@ -136,7 +136,7 @@ public final class PlaceCoordinator {
             return .coordinatesOnly
         }
 
-        let context = CheckInContext(
+        let context = CheckInPrompt(
             sessionID: session.id,
             eventID: eventID,
             primary: primary,
@@ -151,7 +151,7 @@ public final class PlaceCoordinator {
 
     /// Confirming "creates/reuses the Venue and tags the Session's events"
     /// (SPEC §2). Every later drink in the outing then auto-tags silently.
-    public func confirmCheckIn(_ candidate: VenueCandidate, in context: CheckInContext? = nil) {
+    public func confirmCheckIn(_ candidate: VenueCandidate, in context: CheckInPrompt? = nil) {
         guard let context = context ?? pendingCheckIn else { return }
         pendingCheckIn = nil
 
@@ -165,7 +165,7 @@ public final class PlaceCoordinator {
     }
 
     /// "Dismissing tags nothing and doesn't re-prompt this Session" (SPEC §2).
-    public func dismissCheckIn(_ context: CheckInContext? = nil) {
+    public func dismissCheckIn(_ context: CheckInPrompt? = nil) {
         guard let context = context ?? pendingCheckIn else { return }
         pendingCheckIn = nil
         memory.recordDismissal(for: context.sessionID)
