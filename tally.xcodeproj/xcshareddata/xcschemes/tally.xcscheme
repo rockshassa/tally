@@ -34,6 +34,17 @@
             parallelizable = "YES">
             <BuildableReference
                BuildableIdentifier = "primary"
+               BlueprintIdentifier = "TallyKitTests"
+               BuildableName = "TallyKitTests"
+               BlueprintName = "TallyKitTests"
+               ReferencedContainer = "container:TallyKit">
+            </BuildableReference>
+         </TestableReference>
+         <TestableReference
+            skipped = "NO"
+            parallelizable = "YES">
+            <BuildableReference
+               BuildableIdentifier = "primary"
                BlueprintIdentifier = "B20000000000000000000016"
                BuildableName = "tallyTests.xctest"
                ReferencedContainer = "container:tally.xcodeproj">

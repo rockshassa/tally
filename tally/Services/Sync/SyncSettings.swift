@@ -55,7 +55,9 @@ public final class SyncSettings {
     /// which case this reflects the SPEC §8 default: on when signed in.
     public var isOn: Bool {
         didSet {
-            guard isOn != oldValue else { return }
+            // Always write, even when the value matches: an explicit choice that
+            // equals the current *default* must still be persisted, or the store
+            // falls back to the account default and ignores the user (SPEC §8).
             defaults.set(isOn, forKey: TallyStore.syncPreferenceKey)
         }
     }

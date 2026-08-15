@@ -222,12 +222,26 @@ public enum SyncMergeService {
     /// this wave is not allowed to make, so the boundaries stand in for it: two
     /// records with the same `id` derive from the same first event, and the one
     /// materialized earlier has the earlier (shorter) recorded window, since a
-    /// Session's end time only moves forward as drinks are added. The
-    /// `persistentModelID` string is a stable last resort, not a meaningful one.
+    /// Session's end time only moves forward as drinks are added.
+    ///
+    /// The last resort must be computed from *replicated* content, never from
+    /// `persistentModelID`: that id is per-store, so two synced devices would
+    /// order the same pair differently, pick different survivors, and each
+    /// delete the record the other kept — propagating both deletes. Content
+    /// both devices see identically orders identically everywhere.
     static func isOlder(_ lhs: Session, _ rhs: Session) -> Bool {
         if lhs.startedAt != rhs.startedAt { return lhs.startedAt < rhs.startedAt }
         if lhs.endedAt != rhs.endedAt { return lhs.endedAt < rhs.endedAt }
-        return String(describing: lhs.persistentModelID) < String(describing: rhs.persistentModelID)
+        return contentKey(lhs) < contentKey(rhs)
+    }
+
+    /// A total order over a Session's replicated fields.
+    private static func contentKey(_ session: Session) -> String {
+        [
+            session.note ?? "",
+            session.pinned ? "1" : "0",
+            session.venue?.id.uuidString ?? "",
+        ].joined(separator: "|")
     }
 
     // MARK: - Comparison helpers
