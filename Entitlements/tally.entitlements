@@ -31,6 +31,8 @@
 	     grants wake-ups and nothing else. Without it the observer still works
 	     while the app is foregrounded; the feature degrades in latency, not in
 	     behaviour. -->
+	<key>com.apple.developer.healthkit</key>
+	<true/>
 	<key>com.apple.developer.healthkit.background-delivery</key>
 	<true/>
 </dict>
