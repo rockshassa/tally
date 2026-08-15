@@ -2,7 +2,7 @@
 //  TallySyncService.swift
 //  The WatchConnectivity link. Same code runs on both ends.
 //
-//  ⚠️ MIRRORED SOURCE — this file is byte-identical to its twin:
+//  Promoted into TallyKit at Gate 2.5 — the single shared implementation.
 //
 //        tally/Services/Connectivity/TallySyncService.swift
 //        TallyWatch/Connectivity/TallySyncService.swift
@@ -21,7 +21,6 @@
 
 import Foundation
 import SwiftData
-import TallyKit
 import WatchConnectivity
 
 #if canImport(WidgetKit)
