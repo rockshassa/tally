@@ -24,5 +24,14 @@
 	     app opens. -->
 	<key>aps-environment</key>
 	<string>development</string>
+
+	<!-- SPEC §4 "Refresh": HKObserverQuery + background delivery re-runs the
+	     correlation engine as new activity data arrives. Read-only — Tally never
+	     writes HealthKit data to its own store or to CloudKit (SPEC §10), so this
+	     grants wake-ups and nothing else. Without it the observer still works
+	     while the app is foregrounded; the feature degrades in latency, not in
+	     behaviour. -->
+	<key>com.apple.developer.healthkit.background-delivery</key>
+	<true/>
 </dict>
 </plist>
