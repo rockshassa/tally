@@ -62,7 +62,7 @@ public final class TrendsModel {
 
         let events = (try? EventStore.snapshots(in: modelContext)) ?? []
         let venues = ((try? EventStore.venues(in: modelContext)) ?? []).byID
-        let sessions = (try? deriver.derive(in: modelContext)) ?? []
+        let sessions = (try? deriver.derive(in: modelContext, venueExits: RadarService.shared.venueExits())) ?? []
 
         data = Self.assemble(
             events: events,

@@ -41,7 +41,7 @@ public final class HistoryModel {
     // MARK: Loading
 
     public func reload(asOf now: Date = Date()) {
-        let derived = (try? deriver.derive(in: modelContext)) ?? []
+        let derived = (try? deriver.derive(in: modelContext, venueExits: RadarService.shared.venueExits())) ?? []
         sessions = derived.sorted(by: DerivedSession.isOrderedForHistory)
         venues = ((try? EventStore.venues(in: modelContext)) ?? []).byID
         scores = scoring.scores(for: derived, asOf: now).reduce(into: [:]) { $0[$1.sessionID] = $1 }

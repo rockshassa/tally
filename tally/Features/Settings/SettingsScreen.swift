@@ -690,6 +690,7 @@ public struct SettingsScreen: View {
         service.cancelAll()
         service.resetSchedulingHistory()
         ActivityInsightScheduler.shared.resetSchedulingHistory()
+        Task { await RadarService.shared.eraseAll() }
 
         exportBundle = nil
         refreshExport()
