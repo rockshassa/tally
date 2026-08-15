@@ -3,3 +3,6 @@ xcuserdata/
 DerivedData/
 build/
 *.xcuserstate
+.build/
+.swiftpm/
+.claude/worktrees/
