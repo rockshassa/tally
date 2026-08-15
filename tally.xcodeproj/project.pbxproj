@@ -12,6 +12,9 @@
 		A10000000000000000000015 /* TallyKit in Frameworks */ = {isa = PBXBuildFile; productRef = A10000000000000000000023 /* TallyKit */; };
 		A10000000000000000000016 /* TallyKit in Frameworks */ = {isa = PBXBuildFile; productRef = A10000000000000000000024 /* TallyKit */; };
 		A10000000000000000000017 /* TallyKit in Frameworks */ = {isa = PBXBuildFile; productRef = A10000000000000000000025 /* TallyKit */; };
+		B2000000000000000000000B /* TallyKit in Frameworks */ = {isa = PBXBuildFile; productRef = B2000000000000000000000A /* TallyKit */; };
+		B2000000000000000000000C /* TallyWatchComplications.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = B20000000000000000000001 /* TallyWatchComplications.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		B2000000000000000000001B /* TallyKit in Frameworks */ = {isa = PBXBuildFile; productRef = B2000000000000000000001A /* TallyKit */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -28,6 +31,27 @@
 			proxyType = 1;
 			remoteGlobalIDString = A1000000000000000000000A;
 			remoteInfo = TallyWatch;
+		};
+		B2000000000000000000000E /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 000000000000000000000000 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = B20000000000000000000006;
+			remoteInfo = TallyWatchComplications;
+		};
+		B2000000000000000000001C /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 000000000000000000000000 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 000000000000000100000000;
+			remoteInfo = tally;
+		};
+		B2000000000000000000002C /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 000000000000000000000000 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 000000000000000100000000;
+			remoteInfo = tally;
 		};
 /* End PBXContainerItemProxy section */
 
@@ -54,6 +78,17 @@
 			name = "Embed Watch Content";
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		B2000000000000000000000D /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				B2000000000000000000000C /* TallyWatchComplications.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
@@ -63,6 +98,10 @@
 		A10000000000000000000006 /* tally.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = tally.entitlements; sourceTree = "<group>"; };
 		A10000000000000000000007 /* TallyWidget.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = TallyWidget.entitlements; sourceTree = "<group>"; };
 		A10000000000000000000008 /* TallyWatch.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = TallyWatch.entitlements; sourceTree = "<group>"; };
+		B20000000000000000000001 /* TallyWatchComplications.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = TallyWatchComplications.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		B20000000000000000000010 /* TallyWatchComplications.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = TallyWatchComplications.entitlements; sourceTree = "<group>"; };
+		B20000000000000000000011 /* tallyTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = tallyTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		B20000000000000000000021 /* tallyUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = tallyUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -79,6 +118,21 @@
 		A10000000000000000000004 /* TallyWatch */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = TallyWatch;
+			sourceTree = "<group>";
+		};
+		B20000000000000000000002 /* TallyWatchComplications */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = TallyWatchComplications;
+			sourceTree = "<group>";
+		};
+		B20000000000000000000012 /* tallyTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = tallyTests;
+			sourceTree = "<group>";
+		};
+		B20000000000000000000022 /* tallyUITests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = tallyUITests;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -106,6 +160,29 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		B20000000000000000000004 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				B2000000000000000000000B /* TallyKit in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		B20000000000000000000014 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				B2000000000000000000001B /* TallyKit in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		B20000000000000000000024 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -114,6 +191,9 @@
 			children = (
 				000000000000000000000010 /* tally */,
 				A10000000000000000000003 /* TallyWidget */,
+				B20000000000000000000002 /* TallyWatchComplications */,
+				B20000000000000000000012 /* tallyTests */,
+				B20000000000000000000022 /* tallyUITests */,
 				A10000000000000000000004 /* TallyWatch */,
 				A10000000000000000000005 /* Entitlements */,
 				000000000000000000000020 /* Products */,
@@ -126,6 +206,9 @@
 				000000000000000000000120 /* tally.app */,
 				A10000000000000000000001 /* TallyWidget.appex */,
 				A10000000000000000000002 /* TallyWatch.app */,
+				B20000000000000000000001 /* TallyWatchComplications.appex */,
+				B20000000000000000000011 /* tallyTests.xctest */,
+				B20000000000000000000021 /* tallyUITests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -136,6 +219,7 @@
 				A10000000000000000000006 /* tally.entitlements */,
 				A10000000000000000000007 /* TallyWidget.entitlements */,
 				A10000000000000000000008 /* TallyWatch.entitlements */,
+				B20000000000000000000010 /* TallyWatchComplications.entitlements */,
 			);
 			path = Entitlements;
 			sourceTree = "<group>";
@@ -200,10 +284,12 @@
 				A1000000000000000000000E /* Sources */,
 				A1000000000000000000000F /* Frameworks */,
 				A10000000000000000000010 /* Resources */,
+				B2000000000000000000000D /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				B2000000000000000000000F /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				A10000000000000000000004 /* TallyWatch */,
@@ -215,6 +301,74 @@
 			productName = TallyWatch;
 			productReference = A10000000000000000000002 /* TallyWatch.app */;
 			productType = "com.apple.product-type.application";
+		};
+		B20000000000000000000006 /* TallyWatchComplications */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = B20000000000000000000007 /* Build configuration list for PBXNativeTarget "TallyWatchComplications" */;
+			buildPhases = (
+				B20000000000000000000003 /* Sources */,
+				B20000000000000000000004 /* Frameworks */,
+				B20000000000000000000005 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				B20000000000000000000002 /* TallyWatchComplications */,
+			);
+			name = TallyWatchComplications;
+			packageProductDependencies = (
+				B2000000000000000000000A /* TallyKit */,
+			);
+			productName = TallyWatchComplications;
+			productReference = B20000000000000000000001 /* TallyWatchComplications.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
+		B20000000000000000000016 /* tallyTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = B20000000000000000000017 /* Build configuration list for PBXNativeTarget "tallyTests" */;
+			buildPhases = (
+				B20000000000000000000013 /* Sources */,
+				B20000000000000000000014 /* Frameworks */,
+				B20000000000000000000015 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				B2000000000000000000001D /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				B20000000000000000000012 /* tallyTests */,
+			);
+			name = tallyTests;
+			packageProductDependencies = (
+				B2000000000000000000001A /* TallyKit */,
+			);
+			productName = tallyTests;
+			productReference = B20000000000000000000011 /* tallyTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		B20000000000000000000026 /* tallyUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = B20000000000000000000027 /* Build configuration list for PBXNativeTarget "tallyUITests" */;
+			buildPhases = (
+				B20000000000000000000023 /* Sources */,
+				B20000000000000000000024 /* Frameworks */,
+				B20000000000000000000025 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				B2000000000000000000002D /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				B20000000000000000000022 /* tallyUITests */,
+			);
+			name = tallyUITests;
+			productName = tallyUITests;
+			productReference = B20000000000000000000021 /* tallyUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
 		};
 /* End PBXNativeTarget section */
 
@@ -234,6 +388,17 @@
 					};
 					A1000000000000000000000A = {
 						CreatedOnToolsVersion = 26.3;
+					};
+					B20000000000000000000006 = {
+						CreatedOnToolsVersion = 26.3;
+					};
+					B20000000000000000000016 = {
+						CreatedOnToolsVersion = 26.3;
+						TestTargetID = 000000000000000100000000;
+					};
+					B20000000000000000000026 = {
+						CreatedOnToolsVersion = 26.3;
+						TestTargetID = 000000000000000100000000;
 					};
 				};
 			};
@@ -257,6 +422,9 @@
 				000000000000000100000000 /* tally */,
 				A10000000000000000000009 /* TallyWidget */,
 				A1000000000000000000000A /* TallyWatch */,
+				B20000000000000000000006 /* TallyWatchComplications */,
+				B20000000000000000000016 /* tallyTests */,
+				B20000000000000000000026 /* tallyUITests */,
 			);
 		};
 /* End PBXProject section */
@@ -275,6 +443,27 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		A10000000000000000000010 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		B20000000000000000000005 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		B20000000000000000000015 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		B20000000000000000000025 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -303,6 +492,27 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		B20000000000000000000003 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		B20000000000000000000013 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		B20000000000000000000023 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -315,6 +525,21 @@
 			isa = PBXTargetDependency;
 			target = A1000000000000000000000A /* TallyWatch */;
 			targetProxy = A1000000000000000000001B /* PBXContainerItemProxy */;
+		};
+		B2000000000000000000000F /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = B20000000000000000000006 /* TallyWatchComplications */;
+			targetProxy = B2000000000000000000000E /* PBXContainerItemProxy */;
+		};
+		B2000000000000000000001D /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 000000000000000100000000 /* tally */;
+			targetProxy = B2000000000000000000001C /* PBXContainerItemProxy */;
+		};
+		B2000000000000000000002D /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 000000000000000100000000 /* tally */;
+			targetProxy = B2000000000000000000002C /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -669,6 +894,150 @@
 			};
 			name = Release;
 		};
+		B20000000000000000000008 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = Entitlements/TallyWatchComplications.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = Tally;
+				INFOPLIST_KEY_NSExtensionPointIdentifier = "com.apple.widgetkit-extension";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "devplaceholder.$(PROJECT_UNIQUE_VALUE:identifier).tally.watchkitapp.complications";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				REGISTER_APP_GROUPS = YES;
+				SDKROOT = auto;
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "watchos watchsimulator";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 4;
+			};
+			name = Debug;
+		};
+		B20000000000000000000009 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = Entitlements/TallyWatchComplications.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = Tally;
+				INFOPLIST_KEY_NSExtensionPointIdentifier = "com.apple.widgetkit-extension";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "devplaceholder.$(PROJECT_UNIQUE_VALUE:identifier).tally.watchkitapp.complications";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				REGISTER_APP_GROUPS = YES;
+				SDKROOT = auto;
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "watchos watchsimulator";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 4;
+			};
+			name = Release;
+		};
+		B20000000000000000000018 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "devplaceholder.$(PROJECT_UNIQUE_VALUE:identifier).tally.tests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = auto;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/tally.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/tally";
+			};
+			name = Debug;
+		};
+		B20000000000000000000019 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "devplaceholder.$(PROJECT_UNIQUE_VALUE:identifier).tally.tests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = auto;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/tally.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/tally";
+			};
+			name = Release;
+		};
+		B20000000000000000000028 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "devplaceholder.$(PROJECT_UNIQUE_VALUE:identifier).tally.uitests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = auto;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+				TEST_TARGET_NAME = tally;
+			};
+			name = Debug;
+		};
+		B20000000000000000000029 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "devplaceholder.$(PROJECT_UNIQUE_VALUE:identifier).tally.uitests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = auto;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+				TEST_TARGET_NAME = tally;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -706,6 +1075,33 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
+		B20000000000000000000007 /* Build configuration list for PBXNativeTarget "TallyWatchComplications" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				B20000000000000000000008 /* Debug */,
+				B20000000000000000000009 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		B20000000000000000000017 /* Build configuration list for PBXNativeTarget "tallyTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				B20000000000000000000018 /* Debug */,
+				B20000000000000000000019 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		B20000000000000000000027 /* Build configuration list for PBXNativeTarget "tallyUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				B20000000000000000000028 /* Debug */,
+				B20000000000000000000029 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 /* End XCConfigurationList section */
 
 /* Begin XCLocalSwiftPackageReference section */
@@ -725,6 +1121,14 @@
 			productName = TallyKit;
 		};
 		A10000000000000000000025 /* TallyKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = TallyKit;
+		};
+		B2000000000000000000000A /* TallyKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = TallyKit;
+		};
+		B2000000000000000000001A /* TallyKit */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = TallyKit;
 		};
