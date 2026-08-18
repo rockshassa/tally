@@ -588,7 +588,6 @@
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
-				PROJECT_UNIQUE_VALUE = B13UVL67;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
@@ -651,7 +650,6 @@
 				MACOSX_DEPLOYMENT_TARGET = 26.5;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
-				PROJECT_UNIQUE_VALUE = B13UVL67;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_COMPILATION_MODE = wholemodule;
 				WATCHOS_DEPLOYMENT_TARGET = 26.0;
@@ -662,10 +660,10 @@
 		000000000000000111000000 /* Debug configuration for PBXNativeTarget "tally" */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = Entitlements/tally.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
@@ -688,7 +686,7 @@
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "devplaceholder.$(PROJECT_UNIQUE_VALUE:identifier).$(PRODUCT_NAME:identifier)";
+				PRODUCT_BUNDLE_IDENTIFIER = com.rockshassa.tally;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
 				SDKROOT = auto;
@@ -707,10 +705,10 @@
 		000000000000000112000000 /* Release configuration for PBXNativeTarget "tally" */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = Entitlements/tally.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
@@ -733,7 +731,7 @@
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "devplaceholder.$(PROJECT_UNIQUE_VALUE:identifier).$(PRODUCT_NAME:identifier)";
+				PRODUCT_BUNDLE_IDENTIFIER = com.rockshassa.tally;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
 				SDKROOT = auto;
@@ -755,6 +753,7 @@
 				CODE_SIGN_ENTITLEMENTS = Entitlements/TallyWidget.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = PWPUQDATJD;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = TallyWidget/Info.plist;
@@ -765,7 +764,7 @@
 					"@executable_path/../../Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "devplaceholder.$(PROJECT_UNIQUE_VALUE:identifier).tally.TallyWidget";
+				PRODUCT_BUNDLE_IDENTIFIER = com.rockshassa.tally.TallyWidget;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
 				SDKROOT = auto;
@@ -788,6 +787,7 @@
 				CODE_SIGN_ENTITLEMENTS = Entitlements/TallyWidget.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = PWPUQDATJD;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = TallyWidget/Info.plist;
@@ -798,7 +798,7 @@
 					"@executable_path/../../Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "devplaceholder.$(PROJECT_UNIQUE_VALUE:identifier).tally.TallyWidget";
+				PRODUCT_BUNDLE_IDENTIFIER = com.rockshassa.tally.TallyWidget;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
 				SDKROOT = auto;
@@ -818,21 +818,22 @@
 		A10000000000000000000020 /* Debug configuration for PBXNativeTarget "TallyWatch" */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = Entitlements/TallyWatch.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = PWPUQDATJD;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = Tally;
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "Tally compares your activity against your own drinking history, entirely on this device, to show whether drinking is eating into it. Nothing is uploaded.";
 				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "Tally can save the drinks you log to Health as alcoholic beverages. This stays off until you turn it on.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Tally takes one location fix at the moment you log a drink, so it can tag the venue. It never tracks you in between, and the fix never leaves your device.";
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				INFOPLIST_KEY_WKApplication = YES;
-				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = "devplaceholder.$(PROJECT_UNIQUE_VALUE:identifier).tally";
+				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = com.rockshassa.tally;
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "devplaceholder.$(PROJECT_UNIQUE_VALUE:identifier).tally.watchkitapp";
+				PRODUCT_BUNDLE_IDENTIFIER = com.rockshassa.tally.watchkitapp;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
 				SDKROOT = auto;
@@ -851,21 +852,22 @@
 		A10000000000000000000021 /* Release configuration for PBXNativeTarget "TallyWatch" */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = Entitlements/TallyWatch.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = PWPUQDATJD;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = Tally;
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "Tally compares your activity against your own drinking history, entirely on this device, to show whether drinking is eating into it. Nothing is uploaded.";
 				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "Tally can save the drinks you log to Health as alcoholic beverages. This stays off until you turn it on.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Tally takes one location fix at the moment you log a drink, so it can tag the venue. It never tracks you in between, and the fix never leaves your device.";
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				INFOPLIST_KEY_WKApplication = YES;
-				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = "devplaceholder.$(PROJECT_UNIQUE_VALUE:identifier).tally";
+				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = com.rockshassa.tally;
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "devplaceholder.$(PROJECT_UNIQUE_VALUE:identifier).tally.watchkitapp";
+				PRODUCT_BUNDLE_IDENTIFIER = com.rockshassa.tally.watchkitapp;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
 				SDKROOT = auto;
@@ -887,6 +889,7 @@
 				CODE_SIGN_ENTITLEMENTS = Entitlements/TallyWatchComplications.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = PWPUQDATJD;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = TallyWatchComplications/Info.plist;
@@ -896,7 +899,7 @@
 					"@executable_path/../../Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "devplaceholder.$(PROJECT_UNIQUE_VALUE:identifier).tally.watchkitapp.complications";
+				PRODUCT_BUNDLE_IDENTIFIER = com.rockshassa.tally.watchkitapp.complications;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
 				SDKROOT = auto;
@@ -917,6 +920,7 @@
 				CODE_SIGN_ENTITLEMENTS = Entitlements/TallyWatchComplications.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = PWPUQDATJD;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = TallyWatchComplications/Info.plist;
@@ -926,7 +930,7 @@
 					"@executable_path/../../Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "devplaceholder.$(PROJECT_UNIQUE_VALUE:identifier).tally.watchkitapp.complications";
+				PRODUCT_BUNDLE_IDENTIFIER = com.rockshassa.tally.watchkitapp.complications;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
 				SDKROOT = auto;
@@ -949,7 +953,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = YES;
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "devplaceholder.$(PROJECT_UNIQUE_VALUE:identifier).tally.tests";
+				PRODUCT_BUNDLE_IDENTIFIER = com.rockshassa.tally.tests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = auto;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -971,7 +975,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = YES;
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "devplaceholder.$(PROJECT_UNIQUE_VALUE:identifier).tally.tests";
+				PRODUCT_BUNDLE_IDENTIFIER = com.rockshassa.tally.tests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = auto;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -992,7 +996,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = YES;
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "devplaceholder.$(PROJECT_UNIQUE_VALUE:identifier).tally.uitests";
+				PRODUCT_BUNDLE_IDENTIFIER = com.rockshassa.tally.uitests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = auto;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -1012,7 +1016,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = YES;
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "devplaceholder.$(PROJECT_UNIQUE_VALUE:identifier).tally.uitests";
+				PRODUCT_BUNDLE_IDENTIFIER = com.rockshassa.tally.uitests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = auto;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";

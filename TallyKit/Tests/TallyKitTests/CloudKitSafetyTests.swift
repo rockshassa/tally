@@ -188,7 +188,7 @@ struct CloudKitSafetyTests {
 
     @Test("The App Group id derives from the app bundle id")
     func appGroupIdentifier() {
-        #expect(TallyStore.appGroupIdentifier == "group.devplaceholder.B13UVL67.tally")
+        #expect(TallyStore.appGroupIdentifier == "group.com.rockshassa.tally")
         #expect(StoreConfiguration.default.appGroupIdentifier == TallyStore.appGroupIdentifier)
         #expect(StoreConfiguration.local.appGroupIdentifier == nil)
         #expect(StoreConfiguration.inMemory.isStoredInMemoryOnly)

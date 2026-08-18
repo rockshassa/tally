@@ -84,14 +84,14 @@ public enum TallyStore {
     // MARK: Identifiers
 
     /// App Group shared by the app, the widget extension, and the watch app.
-    /// Derived from the app bundle identifier `devplaceholder.B13UVL67.tally`.
+    /// Derived from the app bundle identifier `com.rockshassa.tally`.
     /// Mirrored literally in `Entitlements/*.entitlements` — change both together.
-    public static let appGroupIdentifier = "group.devplaceholder.B13UVL67.tally"
+    public static let appGroupIdentifier = "group.com.rockshassa.tally"
 
     /// The CloudKit container the store's private database lives in (SPEC §8).
     /// Mirrored literally in `Entitlements/tally.entitlements` and
     /// `Entitlements/TallyWatch.entitlements` — change all three together.
-    public static let cloudKitContainerIdentifier = "iCloud.devplaceholder.B13UVL67.tally"
+    public static let cloudKitContainerIdentifier = "iCloud.com.rockshassa.tally"
 
     // MARK: - The sync switch (SPEC §8 / PLAN Wave 2)
 
