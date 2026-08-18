@@ -665,6 +665,7 @@
 				CODE_SIGN_ENTITLEMENTS = Entitlements/tally.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
@@ -709,6 +710,7 @@
 				CODE_SIGN_ENTITLEMENTS = Entitlements/tally.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
@@ -825,6 +827,7 @@
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "Tally compares your activity against your own drinking history, entirely on this device, to show whether drinking is eating into it. Nothing is uploaded.";
 				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "Tally can save the drinks you log to Health as alcoholic beverages. This stays off until you turn it on.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Tally takes one location fix at the moment you log a drink, so it can tag the venue. It never tracks you in between, and the fix never leaves your device.";
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				INFOPLIST_KEY_WKApplication = YES;
 				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = "devplaceholder.$(PROJECT_UNIQUE_VALUE:identifier).tally";
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
@@ -857,6 +860,7 @@
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "Tally compares your activity against your own drinking history, entirely on this device, to show whether drinking is eating into it. Nothing is uploaded.";
 				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "Tally can save the drinks you log to Health as alcoholic beverages. This stays off until you turn it on.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Tally takes one location fix at the moment you log a drink, so it can tag the venue. It never tracks you in between, and the fix never leaves your device.";
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				INFOPLIST_KEY_WKApplication = YES;
 				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = "devplaceholder.$(PROJECT_UNIQUE_VALUE:identifier).tally";
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
