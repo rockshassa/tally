@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- CloudKit sync (SPEC §8): silent pushes are how the mirror learns another
+	     device wrote something. INFOPLIST_KEY_UIBackgroundModes is not a real
+	     generated-plist setting, so the key lives here and merges with the
+	     generated Info.plist. -->
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>remote-notification</string>
+	</array>
+</dict>
+</plist>
