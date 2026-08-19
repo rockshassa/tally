@@ -22,7 +22,7 @@ final class PlaceFeatureSlots: FeatureSlots {
     func checkInSheet(for context: CheckInContext) async -> AnyView? {
         await coordinator.attachPlace(toEventWith: context.eventID)
         guard let pending = coordinator.pendingCheckIn else { return nil }
-        return AnyView(CheckInSheet(context: pending, coordinator: coordinator))
+        return AnyView(SelfDismissingCheckIn(prompt: pending, coordinator: coordinator))
     }
 
     func historyDestination() -> AnyView {
@@ -31,5 +31,21 @@ final class PlaceFeatureSlots: FeatureSlots {
 
     func onboardingHomeSetup(onDone: @escaping () -> Void) -> AnyView {
         AnyView(HomeSetupView(onSave: { _ in onDone() }, onSkip: { onDone() }))
+    }
+}
+
+/// The slot contract (`FeatureSlots.checkInSheet`) says the returned view
+/// dismisses itself — the shell presents it from its own `@State` and never
+/// peeks inside. `CheckInSheet` signals through `onFinish`; this wrapper turns
+/// that into the environment's dismiss action.
+private struct SelfDismissingCheckIn: View {
+
+    let prompt: CheckInPrompt
+    let coordinator: PlaceCoordinator
+
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        CheckInSheet(context: prompt, coordinator: coordinator, onFinish: { dismiss() })
     }
 }
