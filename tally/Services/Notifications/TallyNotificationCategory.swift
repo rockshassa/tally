@@ -9,6 +9,7 @@ import Foundation
 /// | Pacing nudge | 3+ alcoholic drinks within 90 min, in-Session | Wave 2 |
 /// | Streak protection | Evening of a day that would break a streak | Wave 2 |
 /// | Bar Radar arrival / dwell / discovery | Geofence + visit monitoring (§2) | Wave 3 `radar` |
+/// | Session reminder | 60 min since the last log, Session active, still at the venue (§2) | Wave 3 `radar` |
 /// | Activity insight | New qualifying correlation (§4) | Wave 3 `insights` |
 ///
 /// **Wave 3's checklist** — the cases already exist here so the toggles, the
@@ -32,6 +33,7 @@ public enum TallyNotificationCategory: String, CaseIterable, Identifiable, Codab
     case barRadarArrival
     case barRadarDwell
     case barRadarDiscovery
+    case sessionReminder
     case activityInsight
 
     public var id: String { rawValue }
@@ -55,6 +57,7 @@ public enum TallyNotificationCategory: String, CaseIterable, Identifiable, Codab
         case .barRadarArrival: "Bar Radar arrival"
         case .barRadarDwell: "Bar Radar dwell"
         case .barRadarDiscovery: "Bar Radar discovery"
+        case .sessionReminder: "Session reminder"
         case .activityInsight: "Activity insight"
         }
     }
@@ -69,6 +72,7 @@ public enum TallyNotificationCategory: String, CaseIterable, Identifiable, Codab
         case .barRadarArrival: "Arriving at a bar you go to often."
         case .barRadarDwell: "Still at the bar 45 minutes later, nothing logged."
         case .barRadarDiscovery: "A bar you've never logged, at most three prompts a week."
+        case .sessionReminder: "Mid-Session, an hour after your last drink and still at the bar. At most twice a visit."
         case .activityInsight: "A new correlation between drinking and your activity. At most one a week."
         }
     }
@@ -82,6 +86,7 @@ public enum TallyNotificationCategory: String, CaseIterable, Identifiable, Codab
         case .barRadarArrival: "mappin.and.ellipse"
         case .barRadarDwell: "clock"
         case .barRadarDiscovery: "binoculars"
+        case .sessionReminder: "clock.arrow.circlepath"
         case .activityInsight: "figure.run"
         }
     }
@@ -109,7 +114,9 @@ public enum TallyNotificationCategory: String, CaseIterable, Identifiable, Codab
 
     public var quietHoursPolicy: QuietHoursPolicy {
         switch self {
-        case .barRadarArrival, .barRadarDwell, .barRadarDiscovery: .ignore
+        // The Bar Radar family, which now includes the mid-Session reminder: it
+        // fires at the bar, mid-outing, or not at all.
+        case .barRadarArrival, .barRadarDwell, .barRadarDiscovery, .sessionReminder: .ignore
         case .weeklyDigest, .trendAlert, .activityInsight: .postpone
         case .pacingNudge, .streakProtection: .drop
         }
@@ -136,7 +143,7 @@ public enum TallyNotificationCategory: String, CaseIterable, Identifiable, Codab
     public var isImplemented: Bool {
         switch self {
         case .weeklyDigest, .trendAlert, .pacingNudge, .streakProtection, .activityInsight,
-             .barRadarArrival, .barRadarDwell, .barRadarDiscovery: true
+             .barRadarArrival, .barRadarDwell, .barRadarDiscovery, .sessionReminder: true
         }
     }
 

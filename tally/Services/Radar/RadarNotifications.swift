@@ -93,6 +93,24 @@ public enum RadarNotificationCategories {
         )
     }
 
+    /// SPEC §2's mid-Session reminder: *"Still at The Anchor — anything to add?"*
+    /// with a **+1 drink** action.
+    ///
+    /// The same two buttons as the arrival prompt, and deliberately the same
+    /// `logDrinkAction`: "+1 drink" means one thing in this app — log it, tag it
+    /// to the venue, do not launch anything — and a second identifier for the
+    /// same job would be a second code path to keep honest. "Not drinking
+    /// tonight" carries its existing meaning too: the rest of this visit goes
+    /// quiet, reminders included.
+    public static var sessionReminder: UNNotificationCategory {
+        UNNotificationCategory(
+            identifier: TallyNotificationCategory.sessionReminder.identifier,
+            actions: [logDrinkAction, notDrinkingAction],
+            intentIdentifiers: [],
+            options: [.customDismissAction]
+        )
+    }
+
     /// `.customDismissAction` is not decoration: SPEC §2's "two plain dismissals
     /// at the same spot auto-suppress it" is unimplementable without being told
     /// about the swipe-away.
@@ -105,7 +123,9 @@ public enum RadarNotificationCategories {
         )
     }
 
-    public static var all: Set<UNNotificationCategory> { [arrival, arrivalWithMute, dwell, discovery] }
+    public static var all: Set<UNNotificationCategory> {
+        [arrival, arrivalWithMute, dwell, discovery, sessionReminder]
+    }
 }
 
 // MARK: - Scheduling seam
@@ -198,7 +218,8 @@ public final class MockRadarNotifier: RadarNotifying {
 public enum RadarNotificationBuilder {
 
     /// - Parameter fireDate: `nil` delivers as soon as the system can, which is
-    ///   what a geofence entry wants. The dwell follow-up passes its own date.
+    ///   what a geofence entry wants. The dwell follow-up and the mid-Session
+    ///   reminder pass their own dates.
     public static func request(for prompt: RadarPrompt, fireDate: Date? = nil, now: Date = Date()) -> UNNotificationRequest {
 
         let content = UNMutableNotificationContent()
@@ -213,6 +234,9 @@ public enum RadarNotificationBuilder {
         case .discovery:
             content.title = RadarCopy.Discovery.title(prompt.placeName)
             content.body = RadarCopy.Discovery.body
+        case .sessionReminder:
+            content.title = RadarCopy.SessionReminder.title(prompt.placeName)
+            content.body = RadarCopy.SessionReminder.body
         }
 
         content.sound = .default

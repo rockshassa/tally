@@ -93,6 +93,18 @@ public final class TallySettings {
         didSet { TallyDefaults.set(barRadarDwellMinutes, forKey: TallyDefaults.Keys.barRadarDwellMinutes) }
     }
 
+    /// SPEC §2: the mid-Session reminder fires when "no drink has been logged for
+    /// 60 min (configurable)". Measured from the last logged drink, not from
+    /// arrival — that is what makes it a reminder rather than a second dwell.
+    public var sessionReminderMinutes: Int {
+        didSet {
+            TallyDefaults.set(
+                sessionReminderMinutes,
+                forKey: TallyDefaults.Keys.barRadarSessionReminderMinutes
+            )
+        }
+    }
+
     /// SPEC §2: discovery runs during plausible hours only, default 4 pm–2 am.
     public var discoveryStartMinutes: Int {
         didSet { TallyDefaults.set(discoveryStartMinutes, forKey: TallyDefaults.Keys.barRadarDiscoveryStartMinutes) }
@@ -154,6 +166,10 @@ public final class TallySettings {
         barRadarDwellMinutes = TallyDefaults.int(
             forKey: TallyDefaults.Keys.barRadarDwellMinutes,
             default: TallyDefaults.Fallback.barRadarDwellMinutes
+        )
+        sessionReminderMinutes = TallyDefaults.int(
+            forKey: TallyDefaults.Keys.barRadarSessionReminderMinutes,
+            default: TallyDefaults.Fallback.barRadarSessionReminderMinutes
         )
         discoveryStartMinutes = TallyDefaults.int(
             forKey: TallyDefaults.Keys.barRadarDiscoveryStartMinutes,

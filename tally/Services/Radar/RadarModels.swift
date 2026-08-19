@@ -295,11 +295,16 @@ nonisolated public struct RadarPrompt: Hashable, Sendable {
         /// A visit at a bar never logged before (SPEC §2 Tier 2).
         case discovery
 
+        /// The mid-Session reminder: a Session is running here and nothing has
+        /// been logged for the configured interval (SPEC §2 Tier 1).
+        case sessionReminder
+
         public var category: TallyNotificationCategory {
             switch self {
             case .arrival: .barRadarArrival
             case .dwell: .barRadarDwell
             case .discovery: .barRadarDiscovery
+            case .sessionReminder: .sessionReminder
             }
         }
     }
@@ -310,7 +315,11 @@ nonisolated public struct RadarPrompt: Hashable, Sendable {
     /// scoped to a visit, so this is what the actions come back with.
     public let visitID: UUID
 
-    public let placeName: String
+    /// `var` for the same reason `offersMute` is: the mid-Session reminder is
+    /// built from a visit rather than from a geofence event, and a visit
+    /// restored from a build that predates its cached venue name has none —
+    /// `RadarService` fills that in from the venue before delivering.
+    public var placeName: String
 
     /// Tier 1: the venue whose geofence fired.
     public let venueID: UUID?
@@ -472,6 +481,16 @@ nonisolated public enum RadarEffect: Hashable, Sendable {
 
     /// Any logged drink, or the exit event, retracts it.
     case cancelDwell(visitID: UUID)
+
+    /// SPEC §2's mid-Session reminder, due one configured interval after the
+    /// drink that armed it. Re-issued by every subsequent drink, which is why
+    /// the request identifier is per visit rather than per reminder — a second
+    /// one replaces the first in the notification centre.
+    case scheduleSessionReminder(RadarPrompt, at: Date)
+
+    /// SPEC §2: "the geofence exit or 'Not drinking tonight' cancels it", as does
+    /// the next logged drink, which immediately re-arms it from its own timestamp.
+    case cancelSessionReminder(visitID: UUID)
 
     /// SPEC §2: a Session "closes … immediately when a Bar Radar exit event
     /// fires". Persisted so `SessionDeriver` can consume it.

@@ -47,6 +47,7 @@ enum SettingsA11y {
         static let masterToggle = "settings.barRadar.masterToggle"
         static let discoveryToggle = "settings.barRadar.discoveryToggle"
         static let dwellStepper = "settings.barRadar.dwellStepper"
+        static let sessionReminderStepper = "settings.barRadar.sessionReminderStepper"
         static let discoveryStartPicker = "settings.barRadar.discoveryStart"
         static let discoveryEndPicker = "settings.barRadar.discoveryEnd"
         static let statusRow = "settings.barRadar.statusRow"

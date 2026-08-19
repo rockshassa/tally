@@ -60,6 +60,10 @@ public enum TallyDefaults {
         public static let barRadarEnabled = "tally.barRadar.enabled"
         public static let barRadarDiscoveryEnabled = "tally.barRadar.discoveryEnabled"
         public static let barRadarDwellMinutes = "tally.barRadar.dwellMinutes"
+
+        /// SPEC §2's mid-Session reminder: "no drink has been logged for 60 min
+        /// (configurable)".
+        public static let barRadarSessionReminderMinutes = "tally.barRadar.sessionReminderMinutes"
         public static let barRadarDiscoveryStartMinutes = "tally.barRadar.discoveryStartMinutes"
         public static let barRadarDiscoveryEndMinutes = "tally.barRadar.discoveryEndMinutes"
 
@@ -97,6 +101,10 @@ public enum TallyDefaults {
 
         /// SPEC §2: "a second notification for +45 min (configurable)".
         public static let barRadarDwellMinutes = 45
+
+        /// SPEC §2's mid-Session reminder: "if no drink has been logged for
+        /// 60 min (configurable) *and the visit is still ongoing*".
+        public static let barRadarSessionReminderMinutes = 60
 
         /// SPEC §2: "plausible hours only (default 4 pm–2 am, configurable)".
         public static let barRadarDiscoveryStartMinutes = 16 * 60
@@ -196,6 +204,7 @@ public enum TallyDefaults {
             Keys.barRadarEnabled,
             Keys.barRadarDiscoveryEnabled,
             Keys.barRadarDwellMinutes,
+            Keys.barRadarSessionReminderMinutes,
             Keys.barRadarDiscoveryStartMinutes,
             Keys.barRadarDiscoveryEndMinutes,
             Keys.healthWriteAlcoholEnabled,

@@ -23,6 +23,16 @@ enum RadarCopy {
         static let body = "Nothing logged yet — start a Session?"
     }
 
+    /// SPEC §2's mid-Session reminder. The one Bar Radar prompt that speaks
+    /// *after* something has been logged, which is why it may ask about "more":
+    /// the Session is a fact by the time this fires, so the offer is to top it up,
+    /// not to start it.
+    enum SessionReminder {
+        /// SPEC §5's example: "Still at The Anchor — anything to add?"
+        static func title(_ place: String) -> String { "Still at \(place)" }
+        static let body = "Anything to add?"
+    }
+
     enum Discovery {
         /// SPEC §5's example: "Looks like you're at The Salty Dog — start a Session?"
         static func title(_ place: String) -> String { "Looks like you're at \(place)" }

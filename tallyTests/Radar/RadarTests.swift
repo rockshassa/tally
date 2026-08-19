@@ -1,6 +1,7 @@
 import Foundation
 import Testing
 import TallyKit
+import UserNotifications
 @testable import tally
 
 /// SPEC §2 — Bar Radar, both tiers — as pure logic.
@@ -376,7 +377,9 @@ struct RadarVisitMachineTests {
             state: arrival.state
         )
 
-        #expect(logged.effects == [.cancelDwell(visitID: visitID)])
+        // `contains` rather than equality: the same drink also arms the
+        // mid-Session reminder, which `SessionReminderTests` covers.
+        #expect(logged.effects.contains(.cancelDwell(visitID: visitID)))
         #expect(logged.state.visits[0].dwellScheduled == false)
         #expect(logged.state.visits[0].lastDrinkLoggedAt != nil)
     }
@@ -404,7 +407,12 @@ struct RadarVisitMachineTests {
         let first = machine.handle(.drinkLogged(at: start.addingTimeInterval(600)), state: arrival.state)
         let second = machine.handle(.drinkLogged(at: start.addingTimeInterval(1200)), state: first.state)
 
-        #expect(second.effects.isEmpty)
+        // The second drink re-arms the mid-Session reminder, but the follow-up
+        // it already pulled is not pulled twice.
+        #expect(!second.effects.contains { effect in
+            if case .cancelDwell = effect { return true }
+            return false
+        })
     }
 
     @Test("One follow-up maximum per visit, even when it was ignored")
@@ -482,6 +490,349 @@ struct RadarVisitMachineTests {
         let data = try JSONEncoder().encode(arrival.state)
         let restored = try JSONDecoder().decode(RadarVisitState.self, from: data)
         #expect(restored == arrival.state)
+    }
+}
+
+// MARK: - Mid-Session reminder
+
+/// SPEC §2's mid-Session reminder, which is the dwell follow-up's mirror image:
+/// it speaks only *after* a drink has been logged, is re-armed by every
+/// subsequent one, and is capped at two per visit.
+@Suite("Bar Radar — mid-Session reminder (SPEC §2 Tier 1)")
+@MainActor
+struct SessionReminderTests {
+
+    private let target = RadarFixture.target()
+    private let start = RadarFixture.at(hour: 20)
+
+    private func machine(reminderMinutes: Int = 60, dwellMinutes: Int = 45) -> RadarVisitMachine {
+        RadarVisitMachine(
+            configuration: RadarVisitMachine.Configuration(
+                dwellDelay: TimeInterval(dwellMinutes * 60),
+                sessionReminderDelay: TimeInterval(reminderMinutes * 60)
+            )
+        )
+    }
+
+    private func enter(
+        _ machine: RadarVisitMachine,
+        at date: Date,
+        state: RadarVisitState = RadarVisitState()
+    ) -> RadarVisitMachine.Outcome {
+        machine.handle(.entered(target: target, at: date), state: state)
+    }
+
+    private func minutes(_ count: Double) -> Date { start.addingTimeInterval(count * 60) }
+
+    /// Every reminder fire date in an outcome, in order.
+    private func reminderDates(_ outcome: RadarVisitMachine.Outcome) -> [Date] {
+        outcome.effects.compactMap { effect in
+            if case .scheduleSessionReminder(_, let due) = effect { return due }
+            return nil
+        }
+    }
+
+    private func reminderPrompts(_ outcome: RadarVisitMachine.Outcome) -> [RadarPrompt] {
+        outcome.effects.compactMap { effect in
+            if case .scheduleSessionReminder(let prompt, _) = effect { return prompt }
+            return nil
+        }
+    }
+
+    // MARK: Arming
+
+    @Test("The first logged drink arms the reminder, one interval after that drink")
+    func firstDrinkArmsReminder() {
+        let machine = self.machine()
+        let arrival = enter(machine, at: start)
+        let visitID = arrival.state.visits[0].id
+
+        let logged = machine.handle(.drinkLogged(at: minutes(10)), state: arrival.state)
+
+        #expect(logged.effects == [
+            .cancelDwell(visitID: visitID),
+            .scheduleSessionReminder(
+                RadarPrompt(
+                    kind: .sessionReminder,
+                    visitID: visitID,
+                    placeName: "The Anchor",
+                    venueID: target.venueID
+                ),
+                at: minutes(70)
+            )
+        ])
+        #expect(logged.state.visits[0].sessionReminderScheduledFor == minutes(70))
+        #expect(logged.state.visits[0].spentSessionReminders(asOf: minutes(10)) == 0)
+    }
+
+    @Test("Arriving with nothing logged arms no reminder — that stretch belongs to dwell")
+    func zeroDrinksNeverSchedules() {
+        let machine = self.machine()
+        let arrival = enter(machine, at: start)
+
+        #expect(reminderDates(arrival).isEmpty)
+        #expect(arrival.state.visits[0].sessionReminderScheduledFor == nil)
+        #expect(!arrival.state.visits[0].wantsSessionReminder(asOf: start))
+
+        // Nor does stepping out and back in, which re-arms only the dwell prompt.
+        let exit = machine.handle(.exited(venueID: target.venueID, at: minutes(20)), state: arrival.state)
+        let back = enter(machine, at: minutes(30), state: exit.state)
+
+        #expect(reminderDates(back).isEmpty)
+        #expect(back.state.visits[0].sessionReminderScheduledFor == nil)
+    }
+
+    @Test("The interval comes from Settings")
+    func configurableInterval() {
+        let machine = self.machine(reminderMinutes: 90)
+        let arrival = enter(machine, at: start)
+
+        let logged = machine.handle(.drinkLogged(at: minutes(10)), state: arrival.state)
+        #expect(reminderDates(logged) == [minutes(100)])
+    }
+
+    @Test("The machine's default interval is the one TallyDefaults hands out")
+    func defaultInterval() {
+        #expect(TallyDefaults.Fallback.barRadarSessionReminderMinutes == 60)
+        #expect(
+            RadarVisitMachine.Configuration.default.sessionReminderDelay
+                == TimeInterval(TallyDefaults.Fallback.barRadarSessionReminderMinutes * 60)
+        )
+    }
+
+    // MARK: Rescheduling
+
+    @Test("A second drink retracts the pending reminder and re-arms from its own timestamp")
+    func nextDrinkReschedules() {
+        let machine = self.machine()
+        let arrival = enter(machine, at: start)
+        let visitID = arrival.state.visits[0].id
+
+        let first = machine.handle(.drinkLogged(at: minutes(10)), state: arrival.state)
+        let second = machine.handle(.drinkLogged(at: minutes(20)), state: first.state)
+
+        // Retracted and re-issued, not stacked: one cancel, one schedule.
+        #expect(second.effects == [
+            .cancelSessionReminder(visitID: visitID),
+            .scheduleSessionReminder(
+                RadarPrompt(
+                    kind: .sessionReminder,
+                    visitID: visitID,
+                    placeName: "The Anchor",
+                    venueID: target.venueID
+                ),
+                at: minutes(80)
+            )
+        ])
+
+        // Exactly one pending, and nothing spent — a reminder pulled before its
+        // date never counted against the cap.
+        #expect(second.state.visits[0].sessionReminderScheduledFor == minutes(80))
+        #expect(second.state.visits[0].sessionRemindersFired == 0)
+        #expect(second.state.visits[0].spentSessionReminders(asOf: minutes(20)) == 0)
+    }
+
+    @Test("Two maximum per visit, counted by fire date rather than by any callback")
+    func twoPerVisitCap() {
+        let machine = self.machine()
+        let arrival = enter(machine, at: start)
+
+        // Drink 1 arms the first reminder for +70. It fires, ignored — no callback.
+        let first = machine.handle(.drinkLogged(at: minutes(10)), state: arrival.state)
+        #expect(reminderDates(first) == [minutes(70)])
+
+        // Drink 2, after that date: the fired one is banked, the second armed.
+        let second = machine.handle(.drinkLogged(at: minutes(80)), state: first.state)
+        #expect(reminderDates(second) == [minutes(140)])
+        #expect(second.state.visits[0].sessionRemindersFired == 1)
+        // Nothing to cancel — a reminder that already fired cannot be retracted.
+        #expect(!second.effects.contains { effect in
+            if case .cancelSessionReminder = effect { return true }
+            return false
+        })
+
+        // Drink 3, after *that* date: both are spent, so the visit goes quiet.
+        let third = machine.handle(.drinkLogged(at: minutes(150)), state: second.state)
+        #expect(third.effects.isEmpty)
+        #expect(third.state.visits[0].sessionRemindersFired == RadarVisit.maxSessionReminders)
+        #expect(!third.state.visits[0].wantsSessionReminder(asOf: minutes(150)))
+
+        // And a fourth drink does not talk the cap back open.
+        let fourth = machine.handle(.drinkLogged(at: minutes(220)), state: third.state)
+        #expect(reminderDates(fourth).isEmpty)
+    }
+
+    // MARK: Cancellation
+
+    @Test("The geofence exit cancels the pending reminder")
+    func exitCancels() {
+        let machine = self.machine()
+        let arrival = enter(machine, at: start)
+        let visitID = arrival.state.visits[0].id
+
+        let logged = machine.handle(.drinkLogged(at: minutes(10)), state: arrival.state)
+        let exit = machine.handle(.exited(venueID: target.venueID, at: minutes(30)), state: logged.state)
+
+        #expect(exit.effects == [
+            .recordExit(venueID: target.venueID, at: minutes(30)),
+            .cancelSessionReminder(visitID: visitID)
+        ])
+        #expect(exit.state.visits[0].sessionReminderScheduledFor == nil)
+        // Cancelled before it was due, so it was never spent.
+        #expect(exit.state.visits[0].sessionRemindersFired == 0)
+    }
+
+    @Test("\"Not drinking tonight\" cancels the reminder and keeps the visit quiet")
+    func suppressionCancels() {
+        let machine = self.machine()
+        let arrival = enter(machine, at: start)
+        let visitID = arrival.state.visits[0].id
+
+        let logged = machine.handle(.drinkLogged(at: minutes(10)), state: arrival.state)
+        let declined = machine.handle(.declined(visitID: visitID, at: minutes(20)), state: logged.state)
+
+        #expect(declined.effects == [.cancelSessionReminder(visitID: visitID)])
+        #expect(declined.state.visits[0].sessionReminderScheduledFor == nil)
+
+        // A later drink at a silenced visit re-arms nothing.
+        let after = machine.handle(.drinkLogged(at: minutes(40)), state: declined.state)
+        #expect(reminderDates(after).isEmpty)
+    }
+
+    @Test("An exit that lands after the reminder fired spends it rather than refunding it")
+    func exitAfterFireDateBanksTheReminder() {
+        let machine = self.machine()
+        let arrival = enter(machine, at: start)
+
+        let logged = machine.handle(.drinkLogged(at: minutes(10)), state: arrival.state)
+        let exit = machine.handle(.exited(venueID: target.venueID, at: minutes(90)), state: logged.state)
+
+        #expect(exit.effects == [.recordExit(venueID: target.venueID, at: minutes(90))])
+        #expect(exit.state.visits[0].sessionRemindersFired == 1)
+    }
+
+    // MARK: Re-entry
+
+    @Test("Coming back inside re-arms the reminder on the drink's original clock")
+    func reentryKeepsTheDrinkClock() {
+        let machine = self.machine()
+        let arrival = enter(machine, at: start)
+
+        let logged = machine.handle(.drinkLogged(at: minutes(10)), state: arrival.state)
+        let exit = machine.handle(.exited(venueID: target.venueID, at: minutes(20)), state: logged.state)
+        let back = enter(machine, at: minutes(30), state: exit.state)
+
+        // Still one interval after the drink, not after the doorway.
+        #expect(reminderDates(back) == [minutes(70)])
+    }
+
+    @Test("An interval that ran out while outside restarts at the door, it does not fire on arrival")
+    func reentryAfterIntervalElapsedRestarts() {
+        let machine = self.machine()
+        let arrival = enter(machine, at: start)
+
+        let logged = machine.handle(.drinkLogged(at: minutes(10)), state: arrival.state)
+        let exit = machine.handle(.exited(venueID: target.venueID, at: minutes(20)), state: logged.state)
+        let back = enter(machine, at: minutes(100), state: exit.state)
+
+        #expect(reminderDates(back) == [minutes(160)])
+        // The window that elapsed outside was never a mid-Session window, so it
+        // cost the visit nothing.
+        #expect(back.state.visits[0].sessionRemindersFired == 0)
+    }
+
+    // MARK: The prompt
+
+    @Test("The prompt names the venue and carries it into the notification")
+    func promptContents() {
+        let machine = self.machine()
+        let arrival = enter(machine, at: start)
+        let logged = machine.handle(.drinkLogged(at: minutes(10)), state: arrival.state)
+
+        guard let prompt = reminderPrompts(logged).first else {
+            Issue.record("expected a mid-Session reminder")
+            return
+        }
+        #expect(prompt.kind == .sessionReminder)
+        #expect(prompt.placeName == "The Anchor")
+        #expect(prompt.venueID == target.venueID)
+        #expect(prompt.category == .sessionReminder)
+        #expect(prompt.notificationCategoryIdentifier == TallyNotificationCategory.sessionReminder.identifier)
+
+        let request = RadarNotificationBuilder.request(for: prompt, fireDate: minutes(70), now: minutes(10))
+        #expect(request.content.title == "Still at The Anchor")
+        #expect(request.content.body == "Anything to add?")
+        #expect(request.identifier == prompt.requestIdentifier)
+
+        // The system takes a duration, not a date: one interval after the drink
+        // that armed it. Compared with a second of slack because the trigger
+        // stores what it is given, not what we computed.
+        let trigger = request.trigger as? UNTimeIntervalNotificationTrigger
+        #expect(trigger != nil)
+        #expect(abs((trigger?.timeInterval ?? 0) - 60 * 60) < 1)
+
+        // "+1 drink" needs the venue on the way back out to auto-tag the log.
+        let payload = RadarActionPayload(userInfo: RadarActionPayload(prompt: prompt).userInfo)
+        #expect(payload?.kind == .sessionReminder)
+        #expect(payload?.venueID == target.venueID)
+        #expect(payload?.visitID == prompt.visitID)
+    }
+
+    @Test("The category offers +1 drink and Not drinking tonight, and is registered")
+    func categoryActions() {
+        let category = RadarNotificationCategories.sessionReminder
+
+        #expect(category.identifier == TallyNotificationCategory.sessionReminder.identifier)
+        #expect(category.actions.map(\.identifier) == [
+            RadarIdentifiers.logDrinkAction,
+            RadarIdentifiers.notDrinkingAction
+        ])
+        #expect(RadarService.notificationCategories.contains(category))
+    }
+
+    @Test("The reminder is a Bar Radar prompt: quiet hours never touch it (SPEC §5)")
+    func quietHoursExempt() {
+        #expect(TallyNotificationCategory.sessionReminder.quietHoursPolicy == .ignore)
+        #expect(TallyNotificationCategory.sessionReminder.respectsQuietHours == false)
+        #expect(TallyNotificationCategory.sessionReminder.isImplemented)
+        #expect(TallyNotificationCategory.userConfigurable.contains(.sessionReminder))
+    }
+
+    // MARK: Persistence
+
+    @Test("A pending reminder survives the background launch that has to deliver it")
+    func pendingReminderRoundTrips() throws {
+        let machine = self.machine()
+        let arrival = enter(machine, at: start)
+        let logged = machine.handle(.drinkLogged(at: minutes(10)), state: arrival.state)
+
+        let data = try JSONEncoder().encode(logged.state)
+        let restored = try JSONDecoder().decode(RadarVisitState.self, from: data)
+
+        #expect(restored == logged.state)
+        #expect(restored.visits[0].sessionReminderScheduledFor == minutes(70))
+        #expect(restored.visits[0].venueName == "The Anchor")
+    }
+
+    @Test("A visit stored before this feature existed still decodes")
+    func legacyVisitDecodes() throws {
+        let json = """
+        {
+            "id": "\(UUID().uuidString)",
+            "venueID": "\(RadarFixture.anchorID.uuidString)",
+            "startedAt": \(start.timeIntervalSinceReferenceDate),
+            "lastEnteredAt": \(start.timeIntervalSinceReferenceDate),
+            "dwellScheduled": true,
+            "isSuppressed": false
+        }
+        """
+
+        let visit = try JSONDecoder().decode(RadarVisit.self, from: Data(json.utf8))
+
+        #expect(visit.venueName == nil)
+        #expect(visit.sessionRemindersFired == 0)
+        #expect(visit.sessionReminderScheduledFor == nil)
+        #expect(visit.dwellScheduled)
     }
 }
 
@@ -826,7 +1177,8 @@ struct RadarActionPayloadTests {
         for category in [
             TallyNotificationCategory.barRadarArrival,
             .barRadarDwell,
-            .barRadarDiscovery
+            .barRadarDiscovery,
+            .sessionReminder
         ] {
             #expect(category.respectsQuietHours == false)
             #expect(category.quietHoursPolicy == .ignore)
