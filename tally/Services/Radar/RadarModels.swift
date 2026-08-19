@@ -42,6 +42,9 @@ nonisolated public enum RadarIdentifiers {
     /// "Not drinking tonight" — silences the rest of this visit.
     public static let notDrinkingAction = "tally.radar.action.notDrinking"
 
+    /// "Looks right" — SPEC §2's true-up acknowledgement. Deliberately inert.
+    public static let looksRightAction = "tally.radar.action.looksRight"
+
     /// "Not a bar / don't ask here" — writes a `SuppressedPlace`.
     public static let notABarAction = "tally.radar.action.notABar"
 
@@ -68,6 +71,15 @@ nonisolated public enum RadarIdentifiers {
     static let longitudeKey = "radarLongitude"
     static let mapItemKey = "radarMapItem"
     static let categoryKey = "radarPlaceCategory"
+
+    // The Session true-up's payload (SPEC §2). `logAtKey` is the load-bearing
+    // one: "+1 drink" on a true-up is a *retro*-log, and the tap can arrive
+    // hours after the Session it corrects.
+
+    static let sessionKey = "radarSession"
+    static let logAtKey = "radarLogAt"
+    static let drinksKey = "radarDrinks"
+    static let watersKey = "radarWaters"
 }
 
 // MARK: - Tier 1 target
@@ -279,6 +291,42 @@ nonisolated public struct RadarPlace: Hashable, Sendable, Codable {
     }
 }
 
+// MARK: - Session true-up
+
+/// The closed Session a true-up reconciles (SPEC §2).
+///
+/// > **Session true-up:** when a Session with ≥1 drink closes, one reconciliation
+/// > prompt: *"Session at The Anchor ended — 4 drinks, 1 water. Look right?"*
+///
+/// Small and `Codable` for the same reason `RadarPlace` is: it makes the round
+/// trip into a notification's `userInfo` and back out, and by the time "+1 drink"
+/// is tapped the derivation that produced it is long gone.
+nonisolated public struct RadarTrueUp: Hashable, Sendable, Codable {
+
+    /// The `DerivedSession`'s ID — the first event's UUID, which is stable across
+    /// devices and across re-derivation. SPEC §2's "one per Session" is keyed on
+    /// exactly this, so a Session that is derived again cannot re-prompt.
+    public let sessionID: UUID
+
+    public let alcoholicCount: Int
+    public let nonAlcoholicCount: Int
+
+    /// Where a retro "+1 drink" lands. SPEC §2: "retro-logs, venue-tagged,
+    /// **timestamped at close**" — see `SessionTrueUp.logTimestamp(for:)` for why
+    /// it is one second inside the close moment rather than on it.
+    public let logAt: Date
+
+    public init(sessionID: UUID, alcoholicCount: Int, nonAlcoholicCount: Int, logAt: Date) {
+        self.sessionID = sessionID
+        self.alcoholicCount = alcoholicCount
+        self.nonAlcoholicCount = nonAlcoholicCount
+        self.logAt = logAt
+    }
+
+    /// SPEC §2: "a Session with ≥1 drink".
+    public var hasDrinks: Bool { alcoholicCount + nonAlcoholicCount > 0 }
+}
+
 // MARK: - Prompts
 
 /// One "start a Session?" notification, before it becomes a `UNNotificationRequest`.
@@ -299,12 +347,17 @@ nonisolated public struct RadarPrompt: Hashable, Sendable {
         /// been logged for the configured interval (SPEC §2 Tier 1).
         case sessionReminder
 
+        /// The reconciliation prompt a closed Session gets (SPEC §2). The only
+        /// kind whose subject is a Session rather than a visit.
+        case trueUp
+
         public var category: TallyNotificationCategory {
             switch self {
             case .arrival: .barRadarArrival
             case .dwell: .barRadarDwell
             case .discovery: .barRadarDiscovery
             case .sessionReminder: .sessionReminder
+            case .trueUp: .sessionTrueUp
             }
         }
     }
@@ -313,7 +366,11 @@ nonisolated public struct RadarPrompt: Hashable, Sendable {
 
     /// The visit this prompt belongs to. Every suppression rule in SPEC §2 is
     /// scoped to a visit, so this is what the actions come back with.
-    public let visitID: UUID
+    ///
+    /// `nil` only for the true-up, which has no visit to belong to: it is about a
+    /// Session, and the Session it is about may have happened at home, or at a
+    /// venue whose entry event the app never saw.
+    public let visitID: UUID?
 
     /// `var` for the same reason `offersMute` is: the mid-Session reminder is
     /// built from a visit rather than from a geofence event, and a visit
@@ -331,13 +388,17 @@ nonisolated public struct RadarPrompt: Hashable, Sendable {
     /// after repeated dismissals". Set by the service, which is what counts them.
     public var offersMute: Bool
 
+    /// The closed Session, for `kind == .trueUp`. `nil` for everything else.
+    public let trueUp: RadarTrueUp?
+
     public init(
         kind: Kind,
-        visitID: UUID,
+        visitID: UUID? = nil,
         placeName: String,
         venueID: UUID? = nil,
         place: RadarPlace? = nil,
-        offersMute: Bool = false
+        offersMute: Bool = false,
+        trueUp: RadarTrueUp? = nil
     ) {
         self.kind = kind
         self.visitID = visitID
@@ -345,6 +406,7 @@ nonisolated public struct RadarPrompt: Hashable, Sendable {
         self.venueID = venueID
         self.place = place
         self.offersMute = offersMute
+        self.trueUp = trueUp
     }
 
     public var category: TallyNotificationCategory { kind.category }
@@ -358,15 +420,29 @@ nonisolated public struct RadarPrompt: Hashable, Sendable {
             : category.identifier
     }
 
-    /// Stable per visit and per kind: re-delivering a prompt replaces it rather
+    /// What this prompt is *about*: a visit for the Tier 1 prompts, the closed
+    /// Session for the true-up.
+    ///
+    /// This is the key everything one-per-something is enforced on, so the true-up
+    /// deliberately reaches for the Session rather than the visit — SPEC §2 says
+    /// "one per Session", and the same Session can be closed by a visit's exit or
+    /// by the clock, from two different code paths, on two different days.
+    public var subjectID: UUID? { trueUp?.sessionID ?? visitID }
+
+    /// Stable per subject and per kind: re-delivering a prompt replaces it rather
     /// than stacking a second banner.
+    ///
+    /// For the true-up that replacement is the mechanism, not a nicety: the
+    /// timeout path re-issues one on every logged drink, and a geofence exit
+    /// delivers over the top of whatever is pending for the same Session.
     ///
     /// Main-actor bound because `TallyNotificationCategory.identifier` is, and
     /// there is exactly one identifier scheme in the app — reproducing the string
     /// here to dodge the isolation would be how the two drift apart.
     @MainActor
     public var requestIdentifier: String {
-        "\(category.identifier).\(visitID.uuidString)"
+        guard let subjectID else { return category.identifier }
+        return "\(category.identifier).\(subjectID.uuidString)"
     }
 }
 
@@ -379,23 +455,31 @@ nonisolated public struct RadarPrompt: Hashable, Sendable {
 nonisolated public struct RadarActionPayload: Hashable, Sendable {
 
     public let kind: RadarPrompt.Kind
-    public let visitID: UUID
+
+    /// `nil` for the true-up, which belongs to a Session rather than a visit.
+    public let visitID: UUID?
+
     public let venueID: UUID?
     public let place: RadarPlace?
     public let placeName: String
 
+    /// Present on a true-up, and the reason "+1 drink" can land in the past.
+    public let trueUp: RadarTrueUp?
+
     public init(
         kind: RadarPrompt.Kind,
-        visitID: UUID,
+        visitID: UUID? = nil,
         venueID: UUID? = nil,
         place: RadarPlace? = nil,
-        placeName: String = ""
+        placeName: String = "",
+        trueUp: RadarTrueUp? = nil
     ) {
         self.kind = kind
         self.visitID = visitID
         self.venueID = venueID
         self.place = place
         self.placeName = placeName
+        self.trueUp = trueUp
     }
 
     public init(prompt: RadarPrompt) {
@@ -404,7 +488,8 @@ nonisolated public struct RadarActionPayload: Hashable, Sendable {
             visitID: prompt.visitID,
             venueID: prompt.venueID,
             place: prompt.place,
-            placeName: prompt.placeName
+            placeName: prompt.placeName,
+            trueUp: prompt.trueUp
         )
     }
 
@@ -413,9 +498,18 @@ nonisolated public struct RadarActionPayload: Hashable, Sendable {
         var info: [String: String] = [
             "tallyCategory": kind.category.rawValue,
             RadarIdentifiers.kindKey: kind.rawValue,
-            RadarIdentifiers.visitKey: visitID.uuidString,
             RadarIdentifiers.placeNameKey: placeName
         ]
+        if let visitID { info[RadarIdentifiers.visitKey] = visitID.uuidString }
+        if let trueUp {
+            info[RadarIdentifiers.sessionKey] = trueUp.sessionID.uuidString
+            info[RadarIdentifiers.drinksKey] = String(trueUp.alcoholicCount)
+            info[RadarIdentifiers.watersKey] = String(trueUp.nonAlcoholicCount)
+            // Seconds since the reference date rather than a formatted string:
+            // this has to survive `String(describing:)` and come back exact, and
+            // a locale has no business anywhere near it.
+            info[RadarIdentifiers.logAtKey] = String(trueUp.logAt.timeIntervalSinceReferenceDate)
+        }
         if let venueID { info[RadarIdentifiers.venueKey] = venueID.uuidString }
         if let place {
             info[RadarIdentifiers.latitudeKey] = String(place.latitude)
@@ -430,16 +524,32 @@ nonisolated public struct RadarActionPayload: Hashable, Sendable {
 
     /// `nil` for anything that is not one of ours — the handler is wired into a
     /// centre that carries four other categories.
+    ///
+    /// The kind is the whole test of ownership. The visit is not: a true-up has
+    /// none, and requiring one would silently drop every "+1 drink" tapped on the
+    /// prompt that needs it most.
     public init?(userInfo: [String: String]) {
         guard
             let rawKind = userInfo[RadarIdentifiers.kindKey],
-            let kind = RadarPrompt.Kind(rawValue: rawKind),
-            let rawVisit = userInfo[RadarIdentifiers.visitKey],
-            let visitID = UUID(uuidString: rawVisit)
+            let kind = RadarPrompt.Kind(rawValue: rawKind)
         else { return nil }
 
+        let visitID = userInfo[RadarIdentifiers.visitKey].flatMap(UUID.init(uuidString:))
         let name = userInfo[RadarIdentifiers.placeNameKey] ?? ""
         let venueID = userInfo[RadarIdentifiers.venueKey].flatMap(UUID.init(uuidString:))
+
+        var trueUp: RadarTrueUp?
+        if
+            let sessionID = userInfo[RadarIdentifiers.sessionKey].flatMap(UUID.init(uuidString:)),
+            let logAt = userInfo[RadarIdentifiers.logAtKey].flatMap(Double.init)
+        {
+            trueUp = RadarTrueUp(
+                sessionID: sessionID,
+                alcoholicCount: userInfo[RadarIdentifiers.drinksKey].flatMap(Int.init) ?? 0,
+                nonAlcoholicCount: userInfo[RadarIdentifiers.watersKey].flatMap(Int.init) ?? 0,
+                logAt: Date(timeIntervalSinceReferenceDate: logAt)
+            )
+        }
 
         var place: RadarPlace?
         if
@@ -456,7 +566,14 @@ nonisolated public struct RadarActionPayload: Hashable, Sendable {
             )
         }
 
-        self.init(kind: kind, visitID: visitID, venueID: venueID, place: place, placeName: name)
+        self.init(
+            kind: kind,
+            visitID: visitID,
+            venueID: venueID,
+            place: place,
+            placeName: name,
+            trueUp: trueUp
+        )
     }
 }
 
@@ -495,4 +612,15 @@ nonisolated public enum RadarEffect: Hashable, Sendable {
     /// SPEC §2: a Session "closes … immediately when a Bar Radar exit event
     /// fires". Persisted so `SessionDeriver` can consume it.
     case recordExit(venueID: UUID, at: Date)
+
+    /// SPEC §2's Session true-up, on the exit path: "a geofence exit delivers
+    /// immediately (quiet-hours exempt — the user is demonstrably out and awake)".
+    ///
+    /// A *request* for a true-up rather than the prompt itself, because the
+    /// counts it reports come from the event log and this machine has never seen
+    /// one — all it knows is that a drink was logged during the visit it just
+    /// closed, which is what makes the Session worth reconciling at all. Always
+    /// emitted after `.recordExit`: that effect is what closes the Session this
+    /// one describes.
+    case deliverTrueUp(venueID: UUID, closedAt: Date)
 }

@@ -39,12 +39,51 @@ enum RadarCopy {
         static let body = "Start a Session?"
     }
 
+    /// SPEC §2's Session true-up, and the only prompt in this file that speaks
+    /// *after* the outing is over.
+    ///
+    /// It is pure rule 1 — report the user's own numbers — and the question mark
+    /// is doing real work: "Look right?" invites a correction, where "You had 4
+    /// drinks" would be a verdict. Nothing here counts anything the user did not
+    /// log, and no clause is added for a count of zero.
+    enum TrueUp {
+
+        /// SPEC §5's example: "Session at The Anchor ended — 4 drinks, 1 water."
+        ///
+        /// An untagged Session (home, or anywhere the check-in was skipped) has
+        /// no venue to name, and inventing one would be worse than saying less.
+        static func title(_ place: String) -> String {
+            place.isEmpty ? "Session ended" : "Session at \(place) ended"
+        }
+
+        /// "4 drinks, 1 water. Look right?"
+        ///
+        /// A zero is omitted rather than printed: "0 waters" reads as a comment on
+        /// the user, which SPEC §5 rules out.
+        static func body(alcoholic: Int, nonAlcoholic: Int) -> String {
+            var clauses: [String] = []
+            if alcoholic > 0 {
+                clauses.append("\(alcoholic) \(alcoholic == 1 ? "drink" : "drinks")")
+            }
+            if nonAlcoholic > 0 {
+                clauses.append("\(nonAlcoholic) \(nonAlcoholic == 1 ? "water" : "waters")")
+            }
+            guard !clauses.isEmpty else { return "Look right?" }
+            return clauses.joined(separator: ", ") + ". Look right?"
+        }
+    }
+
     // MARK: - Actions (SPEC §2)
 
     enum Action {
         static let logDrink = "+1 drink"
         static let notDrinking = "Not drinking tonight"
         static let notABar = "Not a bar"
+
+        /// SPEC §2's true-up: "**Looks right** (dismisses)". A button that does
+        /// nothing is the point — it lets someone answer the question instead of
+        /// leaving the app to read silence as agreement.
+        static let looksRight = "Looks right"
 
         /// SPEC §2: "Per-venue mute (also offered on the arrival notification
         /// after repeated dismissals)".

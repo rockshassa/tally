@@ -673,7 +673,9 @@ struct SessionReminderTests {
         let logged = machine.handle(.drinkLogged(at: minutes(10)), state: arrival.state)
         let exit = machine.handle(.exited(venueID: target.venueID, at: minutes(30)), state: logged.state)
 
-        #expect(exit.effects == [
+        // The same exit also asks for the Session true-up, which
+        // `SessionTrueUpTests` owns — this test is about the reminder.
+        #expect(exit.effects.prefix(2) == [
             .recordExit(venueID: target.venueID, at: minutes(30)),
             .cancelSessionReminder(visitID: visitID)
         ])
@@ -707,7 +709,12 @@ struct SessionReminderTests {
         let logged = machine.handle(.drinkLogged(at: minutes(10)), state: arrival.state)
         let exit = machine.handle(.exited(venueID: target.venueID, at: minutes(90)), state: logged.state)
 
-        #expect(exit.effects == [.recordExit(venueID: target.venueID, at: minutes(90))])
+        // Nothing to cancel — and no `cancelSessionReminder` hiding among the
+        // true-up the same exit asks for.
+        #expect(!exit.effects.contains { effect in
+            if case .cancelSessionReminder = effect { return true }
+            return false
+        })
         #expect(exit.state.visits[0].sessionRemindersFired == 1)
     }
 
@@ -833,6 +840,432 @@ struct SessionReminderTests {
         #expect(visit.sessionRemindersFired == 0)
         #expect(visit.sessionReminderScheduledFor == nil)
         #expect(visit.dwellScheduled)
+    }
+}
+
+// MARK: - Session true-up
+
+/// SPEC §2's Session true-up:
+///
+/// > when a Session with ≥1 drink closes, one reconciliation prompt: *"Session at
+/// > The Anchor ended — 4 drinks, 1 water. Look right?"* … Fires on every close,
+/// > one per Session: a geofence exit delivers immediately (quiet-hours exempt);
+/// > a timeout close (home, or no geofence) delivers with quiet-hours *postpone*
+/// > semantics.
+///
+/// Two delivery paths, and this file can reach both without a simulator: the exit
+/// path is a `RadarVisitMachine` effect, and the timeout path is arithmetic over a
+/// `DerivedSession` plus the quiet-hours window. Nothing here asserts on delivered
+/// notifications — only on what the pure layer decides.
+@Suite("Bar Radar — Session true-up (SPEC §2)")
+@MainActor
+struct SessionTrueUpTests {
+
+    private let target = RadarFixture.target()
+    private let start = RadarFixture.at(hour: 20)
+
+    private func minutes(_ count: Double) -> Date { start.addingTimeInterval(count * 60) }
+
+    private func machine() -> RadarVisitMachine { RadarVisitMachine() }
+
+    private func enter(
+        _ machine: RadarVisitMachine,
+        at date: Date,
+        state: RadarVisitState = RadarVisitState()
+    ) -> RadarVisitMachine.Outcome {
+        machine.handle(.entered(target: target, at: date), state: state)
+    }
+
+    private func trueUps(_ outcome: RadarVisitMachine.Outcome) -> [RadarEffect] {
+        outcome.effects.filter { effect in
+            if case .deliverTrueUp = effect { return true }
+            return false
+        }
+    }
+
+    // MARK: Fixtures
+
+    private static let quietNight = QuietHours(isEnabled: true, startMinutes: 0, endMinutes: 8 * 60)
+
+    private func event(
+        _ offsetMinutes: Double,
+        type: DrinkType = .alcoholic,
+        venueID: UUID? = nil
+    ) -> DrinkEventSnapshot {
+        DrinkEventSnapshot(type: type, timestamp: minutes(offsetMinutes), venueID: venueID)
+    }
+
+    /// The one Session a set of fixture events derives to.
+    private func session(
+        _ events: [DrinkEventSnapshot],
+        exits: [SessionDeriver.VenueExit] = []
+    ) -> DerivedSession {
+        SessionDeriver().derive(events: events, venueExits: exits).last!
+    }
+
+    // MARK: - Exit path (the machine)
+
+    @Test("An exit after a logged drink asks for the true-up, after recording the close")
+    func exitWithDrinksAsksForTrueUp() {
+        let machine = self.machine()
+        let arrival = enter(machine, at: start)
+        let logged = machine.handle(.drinkLogged(at: minutes(10)), state: arrival.state)
+
+        let exit = machine.handle(.exited(venueID: target.venueID, at: minutes(40)), state: logged.state)
+
+        // Last, and after `.recordExit`: the true-up describes a Session that the
+        // exit closes, and the service derives it from the log in that order.
+        #expect(exit.effects.first == .recordExit(venueID: target.venueID, at: minutes(40)))
+        #expect(exit.effects.last == .deliverTrueUp(venueID: target.venueID, closedAt: minutes(40)))
+    }
+
+    @Test("An exit with nothing logged asks for nothing — there is no Session to reconcile")
+    func exitWithoutDrinksIsSilent() {
+        let machine = self.machine()
+        let arrival = enter(machine, at: start)
+
+        let exit = machine.handle(.exited(venueID: target.venueID, at: minutes(40)), state: arrival.state)
+
+        #expect(trueUps(exit).isEmpty)
+    }
+
+    @Test("An exit for a venue with no known visit asks for nothing")
+    func exitWithoutVisitIsSilent() {
+        let outcome = machine().handle(
+            .exited(venueID: target.venueID, at: minutes(40)),
+            state: RadarVisitState()
+        )
+        // Without a visit there is no evidence anything was logged here; the
+        // projected half covers this Session instead.
+        #expect(outcome.effects == [.recordExit(venueID: target.venueID, at: minutes(40))])
+    }
+
+    @Test("One per exit: a repeated exit event does not ask twice")
+    func repeatedExitAsksOnce() {
+        let machine = self.machine()
+        let arrival = enter(machine, at: start)
+        let logged = machine.handle(.drinkLogged(at: minutes(10)), state: arrival.state)
+
+        let first = machine.handle(.exited(venueID: target.venueID, at: minutes(40)), state: logged.state)
+        let second = machine.handle(.exited(venueID: target.venueID, at: minutes(45)), state: first.state)
+
+        #expect(trueUps(first).count == 1)
+        #expect(second.effects.isEmpty)
+    }
+
+    @Test("Stepping out and back in, then leaving for good, asks once per departure")
+    func reentryThenExit() {
+        let machine = self.machine()
+        let arrival = enter(machine, at: start)
+        let logged = machine.handle(.drinkLogged(at: minutes(10)), state: arrival.state)
+
+        let stepOut = machine.handle(.exited(venueID: target.venueID, at: minutes(20)), state: logged.state)
+        let back = enter(machine, at: minutes(30), state: stepOut.state)
+        let home = machine.handle(.exited(venueID: target.venueID, at: minutes(120)), state: back.state)
+
+        // Each departure closes the Session as far as `SessionDeriver` is
+        // concerned, so each asks — and the service's per-Session ledger is what
+        // makes SPEC §2's "one per Session" hold across the two.
+        #expect(trueUps(stepOut) == [.deliverTrueUp(venueID: target.venueID, closedAt: minutes(20))])
+        #expect(trueUps(home) == [.deliverTrueUp(venueID: target.venueID, closedAt: minutes(120))])
+    }
+
+    // MARK: - Timeout path (the projection)
+
+    @Test("Every drink re-projects the close: the fire date is always the last drink's +3 h")
+    func everyDrinkRepushesTheFireDate() {
+        let window = SessionDeriver.Configuration.defaultInactivityWindow
+        // One night's drinks, replayed one at a time — which is exactly how the
+        // projection sees them: it re-derives on every logged drink.
+        let night = [event(0), event(30), event(75)]
+
+        let first = session(Array(night.prefix(1)))
+        #expect(first.closesAt == minutes(0).addingTimeInterval(window))
+
+        let second = session(Array(night.prefix(2)))
+        #expect(second.closesAt == minutes(30).addingTimeInterval(window))
+        // Same Session, so the same request identifier — replaced, never stacked.
+        #expect(second.id == first.id)
+
+        let third = session(night)
+        #expect(third.closesAt == minutes(75).addingTimeInterval(window))
+        #expect(third.id == first.id)
+    }
+
+    @Test("Replace, not stack: the request identifier is the Session's, not the moment's")
+    func identifierIsKeyedBySession() {
+        let night = [event(0), event(30)]
+        let early = session(Array(night.prefix(1)))
+        let later = session(night)
+
+        let promptA = SessionTrueUp.prompt(for: early, placeName: "The Anchor")
+        let promptB = SessionTrueUp.prompt(for: later, placeName: "The Anchor")
+
+        #expect(promptA?.requestIdentifier == promptB?.requestIdentifier)
+        #expect(
+            promptA?.requestIdentifier
+                == "\(TallyNotificationCategory.sessionTrueUp.identifier).\(early.id.uuidString)"
+        )
+
+        // A different Session gets a different one, or the second night would
+        // silently replace the first.
+        let other = session([event(600)])
+        #expect(other.id != early.id)
+        #expect(SessionTrueUp.prompt(for: other, placeName: "")?.requestIdentifier != promptA?.requestIdentifier)
+    }
+
+    @Test("A close inside quiet hours is deferred to the end of the window")
+    func quietWindowDeferral() {
+        // 23:30 + 3 h = 02:30, inside the default midnight–08:00 window.
+        let closesAt = RadarFixture.at(hour: 2, minute: 30)
+        let fireDate = SessionTrueUp.fireDate(closesAt: closesAt, quietHours: Self.quietNight)
+
+        #expect(fireDate == RadarFixture.at(hour: 8))
+    }
+
+    @Test("A close outside quiet hours keeps its own time")
+    func outsideTheWindowIsUnchanged() {
+        let closesAt = RadarFixture.at(hour: 21)
+        #expect(SessionTrueUp.fireDate(closesAt: closesAt, quietHours: Self.quietNight) == closesAt)
+    }
+
+    @Test("Quiet hours turned off defer nothing")
+    func quietHoursOffDefersNothing() {
+        let off = QuietHours(isEnabled: false, startMinutes: 0, endMinutes: 8 * 60)
+        let closesAt = RadarFixture.at(hour: 2, minute: 30)
+        #expect(SessionTrueUp.fireDate(closesAt: closesAt, quietHours: off) == closesAt)
+    }
+
+    @Test("The category postpones through quiet hours rather than dropping (SPEC §2)")
+    func categoryPolicy() {
+        #expect(TallyNotificationCategory.sessionTrueUp.quietHoursPolicy == .postpone)
+        #expect(TallyNotificationCategory.sessionTrueUp.respectsQuietHours)
+        #expect(TallyNotificationCategory.sessionTrueUp.isImplemented)
+        #expect(TallyNotificationCategory.userConfigurable.contains(.sessionTrueUp))
+    }
+
+    // MARK: - The retro "+1 drink"
+
+    @Test("\"+1 drink\" lands inside the Session it corrects, not at the start of the next one")
+    func retroDrinkLandsInsideTheTimeoutClosedSession() {
+        let existing = [event(0), event(30)]
+        let closed = session(existing)
+
+        let correction = DrinkEventSnapshot(timestamp: SessionTrueUp.logTimestamp(for: closed))
+        let reconciled = SessionDeriver().derive(events: existing + [correction])
+
+        #expect(reconciled.count == 1)
+        #expect(reconciled[0].id == closed.id)
+        #expect(reconciled[0].alcoholicCount == 3)
+
+        // And the boundary is why the inset exists: `SessionDeriver`'s 3 h gap is
+        // exclusive, so a drink stamped exactly at `closesAt` opens a *new*
+        // Session — the opposite of a correction.
+        let onTheBoundary = DrinkEventSnapshot(timestamp: closed.closesAt)
+        #expect(SessionDeriver().derive(events: existing + [onTheBoundary]).count == 2)
+    }
+
+    @Test("It lands inside an exit-closed Session too, where the exit itself is the boundary")
+    func retroDrinkLandsInsideTheExitClosedSession() {
+        let venueID = RadarFixture.anchorID
+        let existing = [event(0, venueID: venueID), event(30, venueID: venueID)]
+        let exits = [SessionDeriver.VenueExit(venueID: venueID, occurredAt: minutes(60))]
+
+        let closed = session(existing, exits: exits)
+        #expect(closed.closesAt == minutes(60))
+
+        let correction = DrinkEventSnapshot(
+            timestamp: SessionTrueUp.logTimestamp(for: closed),
+            venueID: venueID
+        )
+        let reconciled = SessionDeriver().derive(events: existing + [correction], venueExits: exits)
+
+        #expect(reconciled.count == 1)
+        #expect(reconciled[0].id == closed.id)
+        #expect(reconciled[0].alcoholicCount == 3)
+
+        // On the exit's own timestamp it would split, because an exit inside the
+        // interval between two drinks ends the Session.
+        let onTheExit = DrinkEventSnapshot(timestamp: closed.closesAt, venueID: venueID)
+        #expect(SessionDeriver().derive(events: existing + [onTheExit], venueExits: exits).count == 2)
+    }
+
+    @Test("A correction is never dated before the Session it corrects")
+    func logTimestampIsFlooredAtTheLastDrink() {
+        let venueID = RadarFixture.anchorID
+        // The degenerate case: an exit landing on the only drink's own timestamp.
+        let only = [event(0, venueID: venueID)]
+        let exits = [SessionDeriver.VenueExit(venueID: venueID, occurredAt: minutes(0))]
+        let closed = session(only, exits: exits)
+
+        #expect(SessionTrueUp.logTimestamp(for: closed) == closed.endedAt)
+    }
+
+    // MARK: - The prompt
+
+    @Test("The prompt reports the Session's own counts and carries them into the notification")
+    func promptContents() {
+        let events = [event(0), event(10), event(20, type: .nonAlcoholic), event(40)]
+        let closed = session(events)
+
+        guard let prompt = SessionTrueUp.prompt(for: closed, placeName: "The Anchor") else {
+            Issue.record("expected a true-up")
+            return
+        }
+
+        #expect(prompt.kind == .trueUp)
+        #expect(prompt.category == .sessionTrueUp)
+        #expect(prompt.visitID == nil)
+        #expect(prompt.trueUp?.sessionID == closed.id)
+        #expect(prompt.trueUp?.alcoholicCount == 3)
+        #expect(prompt.trueUp?.nonAlcoholicCount == 1)
+
+        let request = RadarNotificationBuilder.request(for: prompt, fireDate: nil, now: closed.closesAt)
+        #expect(request.content.title == "Session at The Anchor ended")
+        #expect(request.content.body == "3 drinks, 1 water. Look right?")
+        #expect(request.identifier == prompt.requestIdentifier)
+        // The exit path delivers now; only the projected half carries a trigger.
+        #expect(request.trigger == nil)
+
+        let scheduled = RadarNotificationBuilder.request(
+            for: prompt,
+            fireDate: closed.closesAt,
+            now: closed.endedAt
+        )
+        let trigger = scheduled.trigger as? UNTimeIntervalNotificationTrigger
+        #expect(trigger != nil)
+        #expect(abs((trigger?.timeInterval ?? 0) - 3 * 60 * 60) < 1)
+    }
+
+    @Test("An untagged Session does not name a place it does not know")
+    func untaggedSession() {
+        let closed = session([event(0)])
+        let prompt = SessionTrueUp.prompt(for: closed, placeName: "")
+
+        #expect(prompt?.venueID == nil)
+        #expect(RadarNotificationBuilder.request(for: prompt!).content.title == "Session ended")
+    }
+
+    @Test("A Session with nothing in it is not worth reconciling")
+    func emptySessionHasNoTrueUp() {
+        let empty = DerivedSession(
+            id: UUID(),
+            startedAt: start,
+            endedAt: start,
+            closesAt: minutes(180),
+            venueID: nil,
+            events: [],
+            isMaterialized: true
+        )
+        #expect(SessionTrueUp.trueUp(for: empty) == nil)
+        #expect(SessionTrueUp.prompt(for: empty, placeName: "The Anchor") == nil)
+    }
+
+    @Test(
+        "The body states counts and drops the clause it has no number for",
+        arguments: [
+            (4, 1, "4 drinks, 1 water. Look right?"),
+            (1, 0, "1 drink. Look right?"),
+            (4, 0, "4 drinks. Look right?"),
+            (0, 2, "2 waters. Look right?"),
+            (1, 1, "1 drink, 1 water. Look right?")
+        ]
+    )
+    func bodyCopy(alcoholic: Int, nonAlcoholic: Int, expected: String) {
+        #expect(RadarCopy.TrueUp.body(alcoholic: alcoholic, nonAlcoholic: nonAlcoholic) == expected)
+    }
+
+    @Test("The category offers Looks right and +1 drink, and is registered")
+    func categoryActions() {
+        let category = RadarNotificationCategories.trueUp
+
+        #expect(category.identifier == TallyNotificationCategory.sessionTrueUp.identifier)
+        #expect(category.actions.map(\.identifier) == [
+            RadarIdentifiers.looksRightAction,
+            RadarIdentifiers.logDrinkAction
+        ])
+        #expect(RadarService.notificationCategories.contains(category))
+    }
+
+    @Test("The Session survives the trip into a notification and back, close moment included")
+    func payloadRoundTrip() {
+        let closed = session([event(0), event(30, type: .nonAlcoholic)])
+        let prompt = SessionTrueUp.prompt(for: closed, placeName: "The Anchor")!
+        let payload = RadarActionPayload(userInfo: RadarActionPayload(prompt: prompt).userInfo)
+
+        #expect(payload?.kind == .trueUp)
+        #expect(payload?.visitID == nil)
+        #expect(payload?.trueUp == prompt.trueUp)
+        // The one field "+1 drink" cannot do without: without it the correction
+        // would be stamped at the tap and open a Session of its own.
+        #expect(payload?.trueUp?.logAt == SessionTrueUp.logTimestamp(for: closed))
+    }
+
+    // MARK: - One per Session (the ledger)
+
+    @Test("A Session that has had its prompt never gets another")
+    func oneDeliveryPerSession() {
+        let store = RadarStore.ephemeral()
+        let sessionID = UUID()
+        let now = RadarFixture.night
+
+        #expect(!store.hasSpentTrueUp(sessionID: sessionID, asOf: now))
+
+        store.recordTrueUpDelivered(sessionID: sessionID, at: now)
+        #expect(store.hasSpentTrueUp(sessionID: sessionID, asOf: now))
+        // Even much later, when the same Session is derived all over again.
+        #expect(store.hasSpentTrueUp(sessionID: sessionID, asOf: now.addingTimeInterval(86_400)))
+        #expect(!store.hasSpentTrueUp(sessionID: UUID(), asOf: now))
+    }
+
+    @Test("A projection is replaceable until its date passes, and spent after")
+    func scheduledIsSpentByItsFireDate() {
+        let store = RadarStore.ephemeral()
+        let sessionID = UUID()
+        let now = RadarFixture.night
+
+        store.recordTrueUpScheduled(sessionID: sessionID, fireDate: now.addingTimeInterval(3600), at: now)
+        #expect(!store.hasSpentTrueUp(sessionID: sessionID, asOf: now))
+
+        // The next drink pushes it out; still one record, still unspent.
+        store.recordTrueUpScheduled(
+            sessionID: sessionID,
+            fireDate: now.addingTimeInterval(7200),
+            at: now.addingTimeInterval(1800)
+        )
+        #expect(store.trueUpRecords(asOf: now).count == 1)
+        #expect(store.trueUpRecord(sessionID: sessionID)?.scheduledFor == now.addingTimeInterval(7200))
+        #expect(!store.hasSpentTrueUp(sessionID: sessionID, asOf: now.addingTimeInterval(3600)))
+
+        // Its date arrives with nothing having retracted it: an ignored
+        // notification produces no callback, so the date is the receipt.
+        #expect(store.hasSpentTrueUp(sessionID: sessionID, asOf: now.addingTimeInterval(7200)))
+    }
+
+    @Test("An exit that beats the projection takes it over rather than adding to it")
+    func exitReplacesTheProjection() {
+        let store = RadarStore.ephemeral()
+        let sessionID = UUID()
+        let now = RadarFixture.night
+
+        store.recordTrueUpScheduled(sessionID: sessionID, fireDate: now.addingTimeInterval(7200), at: now)
+        store.recordTrueUpDelivered(sessionID: sessionID, at: now.addingTimeInterval(600))
+
+        #expect(store.trueUpRecords(asOf: now).count == 1)
+        // The replaced projection is not a second prompt, and must not read as one.
+        #expect(store.trueUpRecord(sessionID: sessionID)?.scheduledFor == nil)
+        #expect(store.hasSpentTrueUp(sessionID: sessionID, asOf: now))
+    }
+
+    @Test("Erase-all forgets which Sessions were reconciled")
+    func resetClearsTheLedger() {
+        let store = RadarStore.ephemeral()
+        let sessionID = UUID()
+
+        store.recordTrueUpDelivered(sessionID: sessionID, at: RadarFixture.night)
+        store.reset()
+
+        #expect(!store.hasSpentTrueUp(sessionID: sessionID, asOf: RadarFixture.night))
     }
 }
 

@@ -37,6 +37,21 @@ public enum RadarNotificationCategories {
         )
     }
 
+    /// SPEC §2's true-up: "**Looks right** (dismisses)".
+    ///
+    /// It carries no options and the handler does nothing with it, which is the
+    /// design: the alternative to a button that means "yes, that's right" is
+    /// reading a swipe-away as agreement, and a swipe-away is what people do to
+    /// notifications they have not read.
+    public static var looksRightAction: UNNotificationAction {
+        UNNotificationAction(
+            identifier: RadarIdentifiers.looksRightAction,
+            title: RadarCopy.Action.looksRight,
+            options: [],
+            icon: UNNotificationActionIcon(systemImageName: "checkmark.circle")
+        )
+    }
+
     /// SPEC §2: "**'Not a bar / don't ask here'** is a first-class action on
     /// discovery prompts — it writes a `SuppressedPlace` … and that spot goes
     /// permanently quiet."
@@ -123,8 +138,28 @@ public enum RadarNotificationCategories {
         )
     }
 
+    /// SPEC §2's Session true-up: *"Session at The Anchor ended — 4 drinks, 1
+    /// water. Look right?"* with **Looks right** and **+1 drink**.
+    ///
+    /// The same `logDrinkAction` again, for the same reason the mid-Session
+    /// reminder reuses it: "+1 drink" means one thing in this app. What differs
+    /// is *when* the drink lands — the true-up's payload carries the Session's
+    /// close moment, and `RadarService` stamps the retro-log with that rather
+    /// than with the tap (SPEC §2: "timestamped at close").
+    ///
+    /// No "Not drinking tonight": the Session is over, and there is nothing left
+    /// to silence.
+    public static var trueUp: UNNotificationCategory {
+        UNNotificationCategory(
+            identifier: TallyNotificationCategory.sessionTrueUp.identifier,
+            actions: [looksRightAction, logDrinkAction],
+            intentIdentifiers: [],
+            options: [.customDismissAction]
+        )
+    }
+
     public static var all: Set<UNNotificationCategory> {
-        [arrival, arrivalWithMute, dwell, discovery, sessionReminder]
+        [arrival, arrivalWithMute, dwell, discovery, sessionReminder, trueUp]
     }
 }
 
@@ -218,8 +253,9 @@ public final class MockRadarNotifier: RadarNotifying {
 public enum RadarNotificationBuilder {
 
     /// - Parameter fireDate: `nil` delivers as soon as the system can, which is
-    ///   what a geofence entry wants. The dwell follow-up and the mid-Session
-    ///   reminder pass their own dates.
+    ///   what a geofence entry — and an exit-close true-up — wants. The dwell
+    ///   follow-up, the mid-Session reminder, and the timeout-close true-up pass
+    ///   their own dates.
     public static func request(for prompt: RadarPrompt, fireDate: Date? = nil, now: Date = Date()) -> UNNotificationRequest {
 
         let content = UNMutableNotificationContent()
@@ -237,6 +273,12 @@ public enum RadarNotificationBuilder {
         case .sessionReminder:
             content.title = RadarCopy.SessionReminder.title(prompt.placeName)
             content.body = RadarCopy.SessionReminder.body
+        case .trueUp:
+            content.title = RadarCopy.TrueUp.title(prompt.placeName)
+            content.body = RadarCopy.TrueUp.body(
+                alcoholic: prompt.trueUp?.alcoholicCount ?? 0,
+                nonAlcoholic: prompt.trueUp?.nonAlcoholicCount ?? 0
+            )
         }
 
         content.sound = .default
