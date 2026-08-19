@@ -228,7 +228,8 @@ public final class RadarService {
     }
 
     /// **Call this from the log path.** Any logged drink retracts the pending
-    /// dwell follow-up (SPEC §2).
+    /// dwell follow-up and re-arms the mid-Session reminder from its own
+    /// timestamp (SPEC §2).
     ///
     /// The store's own `didSave` notification covers the in-app, widget, and
     /// watch paths automatically; this exists for callers that would rather be
@@ -247,7 +248,8 @@ public final class RadarService {
     private func makeMachine() -> RadarVisitMachine {
         RadarVisitMachine(
             configuration: RadarVisitMachine.Configuration(
-                dwellDelay: TimeInterval(max(1, settings.barRadarDwellMinutes) * 60)
+                dwellDelay: TimeInterval(max(1, settings.barRadarDwellMinutes) * 60),
+                sessionReminderDelay: TimeInterval(max(1, settings.sessionReminderMinutes) * 60)
             )
         )
     }
@@ -297,6 +299,20 @@ public final class RadarService {
             case .cancelDwell(let visitID):
                 notifier.cancel(identifiers: [dwellIdentifier(visitID)])
 
+            case .scheduleSessionReminder(var prompt, let date):
+                // The machine builds this one from the visit, which caches the
+                // venue's name — except for a visit persisted by a build that
+                // predates that field. The venue itself still knows it.
+                if prompt.placeName.isEmpty, let venueID = prompt.venueID {
+                    prompt.placeName = resolveTarget(venueID: venueID)?.name ?? ""
+                }
+                // "Still at  — anything to add?" is worse than silence.
+                guard !prompt.placeName.isEmpty else { break }
+                await deliver(prompt, fireDate: date)
+
+            case .cancelSessionReminder(let visitID):
+                notifier.cancel(identifiers: [sessionReminderIdentifier(visitID)])
+
             case .recordExit(let venueID, let at):
                 store.recordExit(venueID: venueID, at: at)
             }
@@ -314,6 +330,13 @@ public final class RadarService {
 
     private func dwellIdentifier(_ visitID: UUID) -> String {
         "\(TallyNotificationCategory.barRadarDwell.identifier).\(visitID.uuidString)"
+    }
+
+    /// One identifier per visit, not per reminder: SPEC §2 allows two per visit
+    /// but only ever one in flight, so the second replaces the first rather than
+    /// stacking beside it. Same scheme as `RadarPrompt.requestIdentifier`.
+    private func sessionReminderIdentifier(_ visitID: UUID) -> String {
+        "\(TallyNotificationCategory.sessionReminder.identifier).\(visitID.uuidString)"
     }
 
     /// SPEC §2: "auto check-in to the venue (it's known — no confirmation sheet
@@ -449,7 +472,9 @@ public final class RadarService {
 
         default:
             // The default action opens the app, which is not an answer to
-            // anything — but it does mean the follow-up has been seen.
+            // anything — but it does mean the follow-up has been seen. The
+            // mid-Session reminder needs no equivalent: its fire date is its own
+            // receipt, and the two-per-visit cap is settled from that.
             if payload.kind == .dwell {
                 Task { await run(.dwellDelivered(visitID: payload.visitID, at: date)) }
             }
@@ -526,6 +551,11 @@ public final class RadarService {
     /// SPEC §2: "Two plain dismissals at the same spot auto-suppress it", and —
     /// for Tier 1 — repeated dismissals at a venue start offering the mute.
     private func recordDismissal(payload: RadarActionPayload, at date: Date) {
+        // A swiped-away mid-Session reminder is not a vote against the venue —
+        // the user is demonstrably logging drinks there — so it must not push
+        // the arrival prompt toward offering to mute the place.
+        guard payload.kind != .sessionReminder else { return }
+
         if let venueID = payload.venueID, payload.kind != .discovery {
             store.recordArrivalDismissal(venueID: venueID, at: date)
             return
@@ -618,7 +648,8 @@ public final class RadarService {
         let prefixes = [
             TallyNotificationCategory.barRadarArrival.identifier,
             TallyNotificationCategory.barRadarDwell.identifier,
-            TallyNotificationCategory.barRadarDiscovery.identifier
+            TallyNotificationCategory.barRadarDiscovery.identifier,
+            TallyNotificationCategory.sessionReminder.identifier
         ]
         let pending = await notifier.pendingIdentifiers()
         let ours = pending.filter { identifier in prefixes.contains { identifier.hasPrefix($0) } }

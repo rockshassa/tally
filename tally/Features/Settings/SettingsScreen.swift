@@ -287,6 +287,22 @@ public struct SettingsScreen: View {
                 .settingsRowBackground()
                 .accessibilityIdentifier(SettingsA11y.BarRadar.dwellStepper)
 
+                // SPEC §9: "mid-Session reminder interval (default 60 min)".
+                //
+                // 30–180 because this clock starts at the last drink: under half
+                // an hour it would land while the glass is still full, and past
+                // three hours the Session has closed itself anyway (SPEC §2).
+                Stepper(
+                    "Session reminder: \(settings.sessionReminderMinutes) min",
+                    value: bind.sessionReminderMinutes,
+                    in: 30...180,
+                    step: 15
+                )
+                .font(.system(size: 15))
+                .foregroundStyle(TallyColor.ink)
+                .settingsRowBackground()
+                .accessibilityIdentifier(SettingsA11y.BarRadar.sessionReminderStepper)
+
                 if settings.barRadarDiscoveryEnabled {
                     MinuteOfDayPicker(title: "Discovery from", minutes: bind.discoveryStartMinutes)
                         .settingsRowBackground()

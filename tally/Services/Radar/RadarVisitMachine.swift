@@ -24,6 +24,14 @@ nonisolated public struct RadarVisit: Identifiable, Hashable, Sendable, Codable 
     /// runs from.
     public var lastExitedAt: Date?
 
+    /// The venue's name, cached at entry.
+    ///
+    /// The visit is the only thing the mid-Session reminder has to go on: it is
+    /// armed by a logged drink, and a drink arrives without a `RadarTarget`
+    /// attached. Optional because a visit persisted by a build that predates this
+    /// field has none — `RadarService` resolves the venue in that case.
+    public var venueName: String?
+
     public var arrivalPromptedAt: Date?
 
     /// Set when the user acts on the follow-up. Only half the story — see
@@ -42,12 +50,32 @@ nonisolated public struct RadarVisit: Identifiable, Hashable, Sendable, Codable 
     /// was never spent.
     public var dwellScheduledFor: Date?
 
-    /// Any drink logged during this visit. Retracts the pending follow-up.
+    /// Any drink logged during this visit. Retracts the pending follow-up, and —
+    /// because it also means a Session is running here — arms the mid-Session
+    /// reminder (SPEC §2).
     public var lastDrinkLoggedAt: Date?
+
+    /// When the pending mid-Session reminder is due, `nil` when none is armed.
+    ///
+    /// Same fire-date accounting as `dwellScheduledFor`, one step further: SPEC
+    /// §2 allows "two maximum per visit", so a passed fire date is *banked* into
+    /// `sessionRemindersFired` rather than left in place as a one-shot receipt.
+    /// A reminder pulled before it was due was never spent and banks nothing.
+    public var sessionReminderScheduledFor: Date?
+
+    /// Reminders whose fire date has passed, settled.
+    ///
+    /// Not a delivery count: an ignored notification produces no callback, so
+    /// "it fired" can only ever mean "its date arrived and nothing had retracted
+    /// it" — exactly the rule the dwell follow-up already runs on.
+    public var sessionRemindersFired: Int
 
     /// SPEC §2: "Not drinking tonight — suppresses all further prompts for this
     /// visit."
     public var isSuppressed: Bool
+
+    /// SPEC §2: "**two maximum per visit**."
+    public static let maxSessionReminders = 2
 
     public init(
         id: UUID = UUID(),
@@ -55,11 +83,14 @@ nonisolated public struct RadarVisit: Identifiable, Hashable, Sendable, Codable 
         startedAt: Date,
         lastEnteredAt: Date? = nil,
         lastExitedAt: Date? = nil,
+        venueName: String? = nil,
         arrivalPromptedAt: Date? = nil,
         dwellDeliveredAt: Date? = nil,
         dwellScheduled: Bool = false,
         dwellScheduledFor: Date? = nil,
         lastDrinkLoggedAt: Date? = nil,
+        sessionReminderScheduledFor: Date? = nil,
+        sessionRemindersFired: Int = 0,
         isSuppressed: Bool = false
     ) {
         self.id = id
@@ -67,12 +98,44 @@ nonisolated public struct RadarVisit: Identifiable, Hashable, Sendable, Codable 
         self.startedAt = startedAt
         self.lastEnteredAt = lastEnteredAt ?? startedAt
         self.lastExitedAt = lastExitedAt
+        self.venueName = venueName
         self.arrivalPromptedAt = arrivalPromptedAt
         self.dwellDeliveredAt = dwellDeliveredAt
         self.dwellScheduled = dwellScheduled
         self.dwellScheduledFor = dwellScheduledFor
         self.lastDrinkLoggedAt = lastDrinkLoggedAt
+        self.sessionReminderScheduledFor = sessionReminderScheduledFor
+        self.sessionRemindersFired = sessionRemindersFired
         self.isSuppressed = isSuppressed
+    }
+
+    /// Every field decoded with `decodeIfPresent`, so a visit written by an older
+    /// build survives an app update.
+    ///
+    /// `RadarStore` reads this state as `?? RadarVisitState()`: one key the old
+    /// payload never wrote would throw, drop every open visit, and re-prompt
+    /// someone who already said "not drinking tonight" — the exact outcome
+    /// persisting the state prevents.
+    public init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        let startedAt = try container.decode(Date.self, forKey: .startedAt)
+
+        self.id = try container.decode(UUID.self, forKey: .id)
+        self.venueID = try container.decode(UUID.self, forKey: .venueID)
+        self.startedAt = startedAt
+        self.lastEnteredAt = try container.decodeIfPresent(Date.self, forKey: .lastEnteredAt) ?? startedAt
+        self.lastExitedAt = try container.decodeIfPresent(Date.self, forKey: .lastExitedAt)
+        self.venueName = try container.decodeIfPresent(String.self, forKey: .venueName)
+        self.arrivalPromptedAt = try container.decodeIfPresent(Date.self, forKey: .arrivalPromptedAt)
+        self.dwellDeliveredAt = try container.decodeIfPresent(Date.self, forKey: .dwellDeliveredAt)
+        self.dwellScheduled = try container.decodeIfPresent(Bool.self, forKey: .dwellScheduled) ?? false
+        self.dwellScheduledFor = try container.decodeIfPresent(Date.self, forKey: .dwellScheduledFor)
+        self.lastDrinkLoggedAt = try container.decodeIfPresent(Date.self, forKey: .lastDrinkLoggedAt)
+        self.sessionReminderScheduledFor =
+            try container.decodeIfPresent(Date.self, forKey: .sessionReminderScheduledFor)
+        self.sessionRemindersFired =
+            try container.decodeIfPresent(Int.self, forKey: .sessionRemindersFired) ?? 0
+        self.isSuppressed = try container.decodeIfPresent(Bool.self, forKey: .isSuppressed) ?? false
     }
 
     public var isInside: Bool { lastExitedAt == nil }
@@ -88,6 +151,32 @@ nonisolated public struct RadarVisit: Identifiable, Hashable, Sendable, Codable 
     /// the user has not said they are not drinking.
     public func wantsDwellFollowUp(asOf now: Date) -> Bool {
         !hasSpentDwellFollowUp(asOf: now) && lastDrinkLoggedAt == nil && !isSuppressed
+    }
+
+    /// How many of SPEC §2's two mid-Session reminders this visit has used.
+    ///
+    /// The pending one counts the moment its date passes — see
+    /// `sessionReminderScheduledFor`.
+    public func spentSessionReminders(asOf now: Date) -> Int {
+        guard let due = sessionReminderScheduledFor, due <= now else { return sessionRemindersFired }
+        return sessionRemindersFired + 1
+    }
+
+    /// Whether a mid-Session reminder may be armed.
+    ///
+    /// Every clause is one of SPEC §2's conditions, and the first two are the
+    /// ones that keep this from becoming a second dwell prompt:
+    /// * **a Session is running here** — "once a Session is running at the venue";
+    ///   with nothing logged this visit the dwell follow-up owns the silence;
+    /// * **the visit is still ongoing** — "the venue-presence condition is
+    ///   load-bearing: without it this would nag people who simply stopped
+    ///   drinking";
+    /// * not suppressed, and under the two-per-visit cap.
+    public func wantsSessionReminder(asOf now: Date) -> Bool {
+        lastDrinkLoggedAt != nil
+            && isInside
+            && !isSuppressed
+            && spentSessionReminders(asOf: now) < Self.maxSessionReminders
     }
 }
 
@@ -159,6 +248,11 @@ nonisolated public enum RadarVisitInput: Hashable, Sendable {
 /// * **On entry** — auto check-in, fire the arrival prompt, arm the follow-up.
 /// * **Dwell follow-up** at +45 min (configurable), "cancelled if any drink gets
 ///   logged or the exit event fires first", **one maximum per visit**.
+/// * **Mid-Session reminder** at +60 min (configurable) after the *last logged
+///   drink*, while the visit is still ongoing: "Any log resets the timer; the
+///   geofence exit or 'Not drinking tonight' cancels it; **two maximum per
+///   visit**." The two prompts never overlap — the dwell follow-up speaks only
+///   before the first drink, this one only after it.
 /// * **Exit** closes the Session (an exit is an input to `SessionDeriver`).
 /// * **"Exit followed by re-entry within 2 h counts as the same visit"** —
 ///   stepping outside must not re-trigger the arrival prompt.
@@ -174,21 +268,28 @@ nonisolated public struct RadarVisitMachine: Sendable {
         /// SPEC §2: "+45 min (configurable)", read from `TallyDefaults`.
         public var dwellDelay: TimeInterval
 
+        /// SPEC §2's mid-Session reminder: "no drink has been logged for 60 min
+        /// (configurable)". Measured from the last drink, not from arrival.
+        public var sessionReminderDelay: TimeInterval
+
         /// How long a visit that never got an exit event is kept. A missed exit
         /// is a normal CoreLocation outcome; without this, one stale visit would
         /// silence a venue forever.
         public var staleVisitAge: TimeInterval
 
-        /// The dwell default mirrors `TallyDefaults.Fallback.barRadarDwellMinutes`
-        /// (45 min), written out because that enum is main-actor isolated and this
-        /// machine has to stay usable from anywhere.
+        /// The two delays mirror `TallyDefaults.Fallback.barRadarDwellMinutes`
+        /// (45 min) and `.barRadarSessionReminderMinutes` (60 min), written out
+        /// because that enum is main-actor isolated and this machine has to stay
+        /// usable from anywhere.
         public init(
             reentryWindow: TimeInterval = 2 * 60 * 60,
             dwellDelay: TimeInterval = 45 * 60,
+            sessionReminderDelay: TimeInterval = 60 * 60,
             staleVisitAge: TimeInterval = 12 * 60 * 60
         ) {
             self.reentryWindow = max(0, reentryWindow)
             self.dwellDelay = max(60, dwellDelay)
+            self.sessionReminderDelay = max(60, sessionReminderDelay)
             self.staleVisitAge = max(reentryWindow, staleVisitAge)
         }
 
@@ -242,10 +343,14 @@ nonisolated public struct RadarVisitMachine: Sendable {
             state.upsert(visit)
             return Outcome(state: state)
 
-        case .declined(let visitID, _):
+        case .declined(let visitID, let at):
             guard var visit = state.visit(id: visitID) else { return Outcome(state: state) }
             visit.isSuppressed = true
-            let effects = [cancelDwell(&visit, at: date(of: input))].compactMap { $0 }
+            // SPEC §2: "the geofence exit or 'Not drinking tonight' cancels it".
+            let effects = [
+                cancelDwell(&visit, at: at),
+                cancelSessionReminder(&visit, at: at)
+            ].compactMap { $0 }
             state.upsert(visit)
             return Outcome(state: state, effects: effects)
         }
@@ -270,6 +375,8 @@ nonisolated public struct RadarVisitMachine: Sendable {
 
                 existing.lastExitedAt = nil
                 existing.lastEnteredAt = at
+                // A venue renamed since the entry prompt should say its new name.
+                existing.venueName = target.name
 
                 var effects: [RadarEffect] = [
                     .autoCheckIn(venueID: target.venueID, visitID: existing.id)
@@ -288,6 +395,15 @@ nonisolated public struct RadarVisitMachine: Sendable {
                     )
                 }
 
+                // Same story for the mid-Session reminder the exit pulled: a
+                // Session that was running when they stepped out is running again
+                // now they are back, and still under the two-per-visit cap.
+                if existing.wantsSessionReminder(asOf: at), let drink = existing.lastDrinkLoggedAt {
+                    let due = sessionReminderDue(after: drink, notBefore: at)
+                    existing.sessionReminderScheduledFor = due
+                    effects.append(.scheduleSessionReminder(sessionReminderPrompt(existing), at: due))
+                }
+
                 state.upsert(existing)
                 return Outcome(state: state, effects: effects)
             }
@@ -297,10 +413,14 @@ nonisolated public struct RadarVisitMachine: Sendable {
         }
 
         let due = at.addingTimeInterval(configuration.dwellDelay)
+        // No mid-Session reminder is armed here: nothing has been logged yet, so
+        // SPEC §2's "once a Session is running at the venue" is not satisfied and
+        // the dwell follow-up above owns this stretch of the visit.
         let visit = RadarVisit(
             id: makeVisitID(),
             venueID: target.venueID,
             startedAt: at,
+            venueName: target.name,
             arrivalPromptedAt: at,
             dwellScheduled: true,
             dwellScheduledFor: due
@@ -339,6 +459,10 @@ nonisolated public struct RadarVisitMachine: Sendable {
         // SPEC §2: the follow-up "is cancelled if … the exit event fires first".
         if let cancel = cancelDwell(&visit, at: at) { effects.append(cancel) }
 
+        // SPEC §2: "the geofence exit … cancels it". The venue-presence condition
+        // is the point of the reminder, and it is no longer met.
+        if let cancel = cancelSessionReminder(&visit, at: at) { effects.append(cancel) }
+
         state.upsert(visit)
         return Outcome(state: state, effects: effects)
     }
@@ -353,6 +477,19 @@ nonisolated public struct RadarVisitMachine: Sendable {
             visit.lastDrinkLoggedAt = at
             // SPEC §2: the follow-up "is cancelled if any drink gets logged".
             if let cancel = cancelDwell(&visit, at: at) { effects.append(cancel) }
+
+            // SPEC §2: "Any log resets the timer." Retract whatever was pending
+            // and re-arm from this drink's own timestamp — one reminder in flight
+            // per visit, never a queue of them. Cancelling first is what settles
+            // the cap: a reminder that had already fired is banked here.
+            if let cancel = cancelSessionReminder(&visit, at: at) { effects.append(cancel) }
+
+            if visit.wantsSessionReminder(asOf: at) {
+                let due = sessionReminderDue(after: at, notBefore: at)
+                visit.sessionReminderScheduledFor = due
+                effects.append(.scheduleSessionReminder(sessionReminderPrompt(visit), at: due))
+            }
+
             state.upsert(visit)
         }
 
@@ -374,6 +511,48 @@ nonisolated public struct RadarVisitMachine: Sendable {
         guard let due = visit.dwellScheduledFor, due > at else { return nil }
         visit.dwellScheduledFor = nil
         return .cancelDwell(visitID: visit.id)
+    }
+
+    /// Retracts a pending mid-Session reminder, and settles the cap on the way.
+    ///
+    /// Three outcomes, and the middle one is SPEC §2's "two maximum per visit":
+    /// * nothing armed — no state change, no effect;
+    /// * armed and **already due** — it fired without telling anyone, so it is
+    ///   banked as spent and there is nothing left to cancel;
+    /// * armed and still in the future — genuinely withdrawn, and it cost the
+    ///   visit nothing.
+    private func cancelSessionReminder(_ visit: inout RadarVisit, at: Date) -> RadarEffect? {
+        guard let due = visit.sessionReminderScheduledFor else { return nil }
+        visit.sessionReminderScheduledFor = nil
+
+        guard due > at else {
+            visit.sessionRemindersFired += 1
+            return nil
+        }
+        return .cancelSessionReminder(visitID: visit.id)
+    }
+
+    /// SPEC §2 measures the interval "since the last log", so the clock is the
+    /// drink's own timestamp.
+    ///
+    /// `notBefore` only bites on re-entry: an interval that ran out while the
+    /// user was outside was never a *mid-Session* interval — the venue-presence
+    /// condition SPEC §2 calls load-bearing was not met — so rather than firing
+    /// the moment they walk back in, the clock restarts from the doorway.
+    private func sessionReminderDue(after drink: Date, notBefore floor: Date) -> Date {
+        let due = drink.addingTimeInterval(configuration.sessionReminderDelay)
+        return due > floor ? due : floor.addingTimeInterval(configuration.sessionReminderDelay)
+    }
+
+    /// Built from the visit rather than a `RadarTarget`: a logged drink is the
+    /// trigger, and it arrives with no idea where it happened.
+    private func sessionReminderPrompt(_ visit: RadarVisit) -> RadarPrompt {
+        RadarPrompt(
+            kind: .sessionReminder,
+            visitID: visit.id,
+            placeName: visit.venueName ?? "",
+            venueID: visit.venueID
+        )
     }
 
     private func prompt(_ kind: RadarPrompt.Kind, visit: RadarVisit, target: RadarTarget) -> RadarPrompt {
