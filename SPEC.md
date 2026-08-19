@@ -106,6 +106,7 @@ Bar Radar notices you're somewhere worth tracking and prompts before you've logg
   - **+1 drink** — logs directly from the notification, opening the Session auto-tagged to the venue, without launching the app.
   - **Not drinking tonight** — suppresses all further prompts for this visit.
 - **Dwell follow-up:** at entry, schedule a second notification for +45 min (configurable): *"Still at The Anchor — start a Session?"* It's cancelled if any drink gets logged or the exit event fires first. **One follow-up maximum per visit** — after that, silence.
+- **Mid-Session reminder:** once a Session is running at the venue, undercounting becomes the failure mode — so if no drink has been logged for 90 min (configurable) *and the visit is still ongoing*, one quiet nudge: *"Still at The Anchor — anything to add?"* with a **+1 drink** action. Any log resets the timer; the geofence exit or "Not drinking tonight" cancels it; **two maximum per visit**. The venue-presence condition is load-bearing: without it this would nag people who simply stopped drinking, which the §5 tone rules forbid.
 - Exit followed by re-entry within 2 h counts as the same visit (stepping outside shouldn't re-trigger the arrival prompt).
 
 **Tier 2 — Discovery ("Discover new bars", its own sub-toggle, on by default when Bar Radar is enabled)**
@@ -175,6 +176,7 @@ All local (no server), **opt-in per category**, with quiet-hours respect. Notifi
 | Bar Radar arrival | Geofence entry at a frequented bar (§2) | "Looks like you're at The Anchor — start a Session?" |
 | Bar Radar dwell | 45 min after arrival, still there, nothing logged | "Still at The Anchor — start a Session?" |
 | Bar Radar discovery | Visit detected at a bar never logged before (§2), max 3/week | "Looks like you're at The Salty Dog — start a Session?" |
+| Session reminder | 90 min since the last log, Session active, still at the venue (§2), max 2/visit | "Still at The Anchor — anything to add?" |
 | Activity insight | New qualifying correlation from the health-insights engine (§4), at most one per week | "Your exercise minutes run 40% lower in weeks with 10+ drinks." |
 
 Tone throughout: neutral-to-encouraging, never shaming. Upward-trend alerts state facts ("up 20% vs last month") without judgment. Quiet hours apply to every category except the Bar Radar ones — bar hours *are* quiet hours, and those prompts are the feature.
@@ -256,7 +258,7 @@ Lives on the You tab. Every configurable default named elsewhere in this spec ha
 
 - **Goal:** NA-ratio goal (default 1 : 1, per §3).
 - **Venues:** edit Home (pin + radius); saved venue list — rename, recategorize, per-venue Bar Radar mute; suppressed-places list with un-suppress.
-- **Bar Radar:** master toggle (triggers the Always upgrade flow, §2); discovery sub-toggle (on by default); dwell reminder delay (default 45 min); discovery hours (default 4 pm–2 am); live permission status.
+- **Bar Radar:** master toggle (triggers the Always upgrade flow, §2); discovery sub-toggle (on by default); dwell reminder delay (default 45 min); mid-Session reminder interval (default 90 min); discovery hours (default 4 pm–2 am); live permission status.
 - **Notifications:** the §5 per-category toggles; quiet-hours window; live permission status.
 - **Health:** connect/disconnect HealthKit reads (§4); write-to-Health toggle (off by default); morning-after Session threshold (default ≥ 2 drinks).
 - **iCloud sync:** toggle (on by default when signed in, §8); last-sync status.
