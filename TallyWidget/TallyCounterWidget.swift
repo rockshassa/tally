@@ -53,15 +53,22 @@ struct TallyCounterWidgetView: View {
         .foregroundStyle(TallyPalette.ink)
     }
 
-    /// Counts on top, the two log buttons pinned to the bottom — identical on
-    /// small and on the medium family's left half.
+    /// Counts on top, one [−][+] row per drink type pinned to the bottom —
+    /// identical on small and on the medium family's left half. Undo mirrors
+    /// the app's per-type semantics (SPEC §1) and disables at zero.
     private var counterColumn: some View {
         VStack(alignment: .leading, spacing: 0) {
             CountsRow(entry: entry)
-            Spacer(minLength: 8)
-            HStack(spacing: 7) {
-                LogButton(drink: .alcoholic)
-                LogButton(drink: .nonAlcoholic)
+            Spacer(minLength: 6)
+            VStack(spacing: 6) {
+                HStack(spacing: 6) {
+                    UndoButton(drink: .alcoholic, count: entry.counts.alcoholic)
+                    LogButton(drink: .alcoholic)
+                }
+                HStack(spacing: 6) {
+                    UndoButton(drink: .nonAlcoholic, count: entry.counts.nonAlcoholic)
+                    LogButton(drink: .nonAlcoholic)
+                }
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
@@ -157,6 +164,38 @@ private struct LogButton: View {
         .buttonStyle(.plain)
         .accessibilityLabel(drink.logAccessibilityLabel)
         .accessibilityHint("Saves immediately without opening Tally")
+    }
+}
+
+// MARK: - Interactive undo button
+
+/// The quiet counterpart to `LogButton`: narrow, ink-toned, disabled at zero —
+/// same visual hierarchy the app gives undo (SPEC §1: no-op at zero).
+private struct UndoButton: View {
+
+    let drink: DrinkType
+    let count: Int
+
+    var body: some View {
+        Button(intent: UndoDrinkIntent(drink: drink)) {
+            Image(systemName: "minus")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(count > 0 ? TallyPalette.ink2 : TallyPalette.ink3)
+                .frame(width: 30)
+                .padding(.vertical, 7)
+                .background(TallyPalette.ink3.opacity(0.14), in: .rect(cornerRadius: 10))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 10)
+                        .strokeBorder(TallyPalette.ink3.opacity(0.25), lineWidth: 1)
+                )
+                .contentShape(.rect(cornerRadius: 10))
+        }
+        .buttonStyle(.plain)
+        .disabled(count == 0)
+        .accessibilityLabel(
+            drink == .alcoholic ? "Undo the last alcoholic drink" : "Undo the last non-alcoholic drink"
+        )
+        .accessibilityHint("Removes today's most recent one")
     }
 }
 

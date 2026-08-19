@@ -1,6 +1,10 @@
 import Foundation
 import SwiftData
 
+#if canImport(WidgetKit)
+import WidgetKit
+#endif
+
 /// The single sanctioned write/read path for the event log.
 ///
 /// Every surface — app, widget, watch, notification action, WatchConnectivity
@@ -97,6 +101,7 @@ public enum EventStore {
         )
         context.insert(event)
         try context.save()
+        refreshWidgets()
         return event
     }
 
@@ -123,6 +128,7 @@ public enum EventStore {
         guard let victim = try context.fetch(descriptor).first else { return false }
         context.delete(victim)
         try context.save()
+        refreshWidgets()
         return true
     }
 
@@ -159,6 +165,7 @@ public enum EventStore {
             )
             context.insert(created)
             try context.save()
+            refreshWidgets()
             return .inserted
         }
 
@@ -172,6 +179,7 @@ public enum EventStore {
         existing.source = snapshot.source
         existing.venue = resolvedVenue
         try context.save()
+        refreshWidgets()
         return .updated
     }
 
@@ -214,5 +222,20 @@ public enum EventStore {
         try context.delete(model: SuppressedPlace.self)
         try context.delete(model: Venue.self)
         try context.save()
+        refreshWidgets()
+    }
+
+    // MARK: - Widget freshness
+
+    /// The single choke point that keeps every glanceable in step with the
+    /// store: any mutation — app tap, widget intent, watch mirror, sync merge,
+    /// erase — lands here, so the widget can never sit stale until midnight.
+    /// Reloading is cheap and coalesced by the system; calling it from whichever
+    /// process wrote (app, widget extension, watch app) is exactly the API's
+    /// intended use.
+    static func refreshWidgets() {
+        #if canImport(WidgetKit)
+        WidgetCenter.shared.reloadAllTimelines()
+        #endif
     }
 }

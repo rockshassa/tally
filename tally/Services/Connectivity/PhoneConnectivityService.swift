@@ -20,6 +20,7 @@
 import Foundation
 import SwiftData
 import TallyKit
+import UIKit
 
 @MainActor
 public final class PhoneConnectivityService {
@@ -97,6 +98,30 @@ public final class PhoneConnectivityService {
         )
 
         sync.activate()
+
+        // Widget-extension undos park tombstones in the App Group — the widget
+        // process has no WCSession. Drain on activation and every foreground so
+        // the watch hears about them before its next catch-up can resurrect.
+        drainPendingTombstones()
+        observers.append(
+            NotificationCenter.default.addObserver(
+                forName: UIApplication.didBecomeActiveNotification,
+                object: nil,
+                queue: .main
+            ) { _ in
+                Task { @MainActor in
+                    PhoneConnectivityService.shared.drainPendingTombstones()
+                }
+            }
+        )
+    }
+
+    /// Mirrors any tombstones a widget-process undo left behind (SPEC §7 —
+    /// merges dedupe by UUID, so re-draining is harmless).
+    public func drainPendingTombstones() {
+        for tombstone in PendingTombstoneQueue.drain() {
+            mirrorUndo(eventID: tombstone.id, deletedAt: tombstone.deletedAt)
+        }
     }
 
     deinit {
