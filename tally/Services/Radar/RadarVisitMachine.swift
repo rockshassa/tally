@@ -253,7 +253,9 @@ nonisolated public enum RadarVisitInput: Hashable, Sendable {
 ///   geofence exit or 'Not drinking tonight' cancels it; **two maximum per
 ///   visit**." The two prompts never overlap — the dwell follow-up speaks only
 ///   before the first drink, this one only after it.
-/// * **Exit** closes the Session (an exit is an input to `SessionDeriver`).
+/// * **Exit** closes the Session (an exit is an input to `SessionDeriver`), and —
+///   when anything was logged during the visit — asks for the **Session true-up**:
+///   "when a Session with ≥1 drink closes, one reconciliation prompt."
 /// * **"Exit followed by re-entry within 2 h counts as the same visit"** —
 ///   stepping outside must not re-trigger the arrival prompt.
 nonisolated public struct RadarVisitMachine: Sendable {
@@ -462,6 +464,24 @@ nonisolated public struct RadarVisitMachine: Sendable {
         // SPEC §2: "the geofence exit … cancels it". The venue-presence condition
         // is the point of the reminder, and it is no longer met.
         if let cancel = cancelSessionReminder(&visit, at: at) { effects.append(cancel) }
+
+        // SPEC §2's Session true-up: "when a Session with ≥1 drink closes, one
+        // reconciliation prompt … a geofence exit delivers immediately".
+        //
+        // A drink logged during this visit is all the evidence this machine can
+        // have that the Session the exit just closed has something in it — the
+        // counts themselves come from the event log, which is the service's job.
+        // Emitted last, because it describes the outcome of `.recordExit` above.
+        //
+        // Not gated on `isSuppressed`: "Not drinking tonight" silences the
+        // prompts that ask someone to *log*, and a visit that then logged drinks
+        // has answered that question already. SPEC §2 says the true-up "fires on
+        // every close", and the timeout path below has no visit to consult
+        // anyway — honouring the flag here alone would make the behaviour depend
+        // on which path happened to win the race.
+        if visit.lastDrinkLoggedAt != nil {
+            effects.append(.deliverTrueUp(venueID: venueID, closedAt: at))
+        }
 
         state.upsert(visit)
         return Outcome(state: state, effects: effects)

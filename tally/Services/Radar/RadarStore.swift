@@ -14,6 +14,7 @@ import TallyKit
 /// | Geofence exits | a Session "closes … immediately when a Bar Radar exit event fires" |
 /// | Discovery prompt dates | "max 3 discovery prompts per week" |
 /// | Spot dismissals | "Two plain dismissals at the same spot auto-suppress it" |
+/// | True-ups | the Session true-up "fires on every close, **one per Session**" |
 ///
 /// A geofence entry can wake the app in the background hours after it was last
 /// used, so this is written to the App Group suite (`TallyDefaults`) that every
@@ -29,9 +30,10 @@ public final class RadarStore {
         public static let discoveryPrompts = "tally.radar.discoveryPrompts"
         public static let spotDismissals = "tally.radar.spotDismissals"
         public static let venueDismissals = "tally.radar.venueDismissals"
+        public static let trueUps = "tally.radar.trueUps"
 
         public static let all: [String] = [
-            visitState, venueExits, discoveryPrompts, spotDismissals, venueDismissals
+            visitState, venueExits, discoveryPrompts, spotDismissals, venueDismissals, trueUps
         ]
     }
 
@@ -46,6 +48,12 @@ public final class RadarStore {
     /// A dismissal that old is not evidence about tonight.
     static let dismissalRetention: TimeInterval = 90 * 24 * 60 * 60
 
+    /// Comfortably longer than any Session can be talked back open: a true-up's
+    /// own "+1 drink" lands inside the Session it corrects and pushes `closesAt`
+    /// out by another inactivity window, and the ledger has to still remember
+    /// that Session when that happens.
+    static let trueUpRetention: TimeInterval = 7 * 24 * 60 * 60
+
     static let maxRecords = 200
 
     // MARK: - Records
@@ -53,6 +61,41 @@ public final class RadarStore {
     struct StoredExit: Hashable, Sendable, Codable {
         var venueID: UUID
         var occurredAt: Date
+    }
+
+    /// One Session's worth of true-up bookkeeping (SPEC §2: "one per Session").
+    ///
+    /// Two dates rather than a flag, because the feature has two delivery paths
+    /// and only one of them ever gets a receipt:
+    /// * `deliveredAt` — the exit path handed it to the system. Terminal.
+    /// * `scheduledFor` — the timeout path has one pending. Replaceable while the
+    ///   date is in the future; **spent** once it passes, because an ignored
+    ///   notification produces no callback and there is nothing else to learn.
+    ///
+    /// The same fire-date accounting `RadarVisit` uses for the dwell follow-up and
+    /// the mid-Session reminder, for the same reason.
+    public struct TrueUpRecord: Hashable, Sendable, Codable {
+
+        public var sessionID: UUID
+        public var scheduledFor: Date?
+        public var deliveredAt: Date?
+
+        public init(sessionID: UUID, scheduledFor: Date? = nil, deliveredAt: Date? = nil) {
+            self.sessionID = sessionID
+            self.scheduledFor = scheduledFor
+            self.deliveredAt = deliveredAt
+        }
+
+        /// Whether this Session has had its one prompt.
+        public func isSpent(asOf now: Date) -> Bool {
+            if deliveredAt != nil { return true }
+            if let scheduledFor, scheduledFor <= now { return true }
+            return false
+        }
+
+        var lastTouchedAt: Date {
+            [deliveredAt, scheduledFor].compactMap { $0 }.max() ?? .distantPast
+        }
     }
 
     /// SPEC §2: "Two plain dismissals at the same spot auto-suppress it."
@@ -139,6 +182,59 @@ public final class RadarStore {
     public func discoveryPromptDates(asOf now: Date = Date()) -> [Date] {
         let dates: [Date] = decode(Keys.discoveryPrompts) ?? []
         return dates.filter { now.timeIntervalSince($0) <= Self.promptRetention }
+    }
+
+    // MARK: - Session true-ups
+
+    public func trueUpRecords(asOf now: Date = Date()) -> [TrueUpRecord] {
+        let records: [TrueUpRecord] = decode(Keys.trueUps) ?? []
+        return records.filter { now.timeIntervalSince($0.lastTouchedAt) <= Self.trueUpRetention }
+    }
+
+    public func trueUpRecord(sessionID: UUID) -> TrueUpRecord? {
+        let records: [TrueUpRecord] = decode(Keys.trueUps) ?? []
+        return records.first { $0.sessionID == sessionID }
+    }
+
+    /// SPEC §2's "one per Session", asked as a question.
+    ///
+    /// A Session re-derived tomorrow keeps its ID — the first event's UUID — so
+    /// this is what stops derivation alone from producing a second prompt.
+    public func hasSpentTrueUp(sessionID: UUID, asOf now: Date = Date()) -> Bool {
+        trueUpRecord(sessionID: sessionID)?.isSpent(asOf: now) ?? false
+    }
+
+    /// The timeout path put one in the queue. Replaces any earlier projection for
+    /// the same Session, which is what makes "every drink re-projects" cost one
+    /// record rather than a queue of them.
+    public func recordTrueUpScheduled(sessionID: UUID, fireDate: Date, at now: Date = Date()) {
+        upsertTrueUp(sessionID: sessionID, asOf: now) { record in
+            record.scheduledFor = fireDate
+        }
+    }
+
+    /// The exit path delivered one. Terminal: nothing schedules for this Session
+    /// again.
+    public func recordTrueUpDelivered(sessionID: UUID, at now: Date = Date()) {
+        upsertTrueUp(sessionID: sessionID, asOf: now) { record in
+            record.deliveredAt = now
+            // The pending projection this delivery replaced is not a second
+            // prompt, and leaving its date behind would say it was.
+            record.scheduledFor = nil
+        }
+    }
+
+    private func upsertTrueUp(
+        sessionID: UUID,
+        asOf now: Date,
+        _ update: (inout TrueUpRecord) -> Void
+    ) {
+        var records = trueUpRecords(asOf: now)
+        var record = records.first { $0.sessionID == sessionID } ?? TrueUpRecord(sessionID: sessionID)
+        update(&record)
+        records.removeAll { $0.sessionID == sessionID }
+        records.append(record)
+        encode(Array(records.suffix(Self.maxRecords)), forKey: Keys.trueUps)
     }
 
     // MARK: - Dismissals

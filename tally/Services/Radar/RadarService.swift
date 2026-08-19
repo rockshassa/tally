@@ -22,7 +22,11 @@ import UserNotifications
 /// **Quiet hours.** SPEC §5 exempts every Bar Radar category — "bar hours *are*
 /// quiet hours, and those prompts are the feature". The exemption is structural
 /// here: these requests go straight to `RadarNotifying`, which never consults
-/// `QuietHours`.
+/// `QuietHours`. The one exception is the Session true-up's *scheduled* half,
+/// which SPEC §2 asks to postpone through the window and which therefore asks
+/// `SessionTrueUp.fireDate(closesAt:quietHours:calendar:)` before it schedules —
+/// still down the same delivery path, just with a date that already respects the
+/// window it was computed against.
 ///
 /// **What the integrator wires** (and all it has to):
 /// ```swift
@@ -228,14 +232,21 @@ public final class RadarService {
     }
 
     /// **Call this from the log path.** Any logged drink retracts the pending
-    /// dwell follow-up and re-arms the mid-Session reminder from its own
-    /// timestamp (SPEC §2).
+    /// dwell follow-up, re-arms the mid-Session reminder from its own timestamp,
+    /// and re-projects the Session true-up (SPEC §2).
     ///
     /// The store's own `didSave` notification covers the in-app, widget, and
     /// watch paths automatically; this exists for callers that would rather be
     /// explicit, and is what the "+1 drink" action uses.
     public func sessionDidLogDrink(at date: Date = Date()) {
-        Task { await run(.drinkLogged(at: date)) }
+        Task { await drinkLogged(at: date) }
+    }
+
+    /// Everything a logged drink means to Bar Radar, in one place so the three
+    /// callers cannot drift.
+    private func drinkLogged(at date: Date) async {
+        await run(.drinkLogged(at: date))
+        await projectTrueUp(asOf: date)
     }
 
     private func run(_ input: RadarVisitInput) async {
@@ -315,17 +326,26 @@ public final class RadarService {
 
             case .recordExit(let venueID, let at):
                 store.recordExit(venueID: venueID, at: at)
+
+            case .deliverTrueUp(let venueID, let closedAt):
+                await deliverTrueUp(venueID: venueID, closedAt: closedAt)
             }
         }
     }
 
     /// SPEC §5's quiet-hours exemption lives here, by omission: this is the only
     /// path Bar Radar notifications take, and it asks `QuietHours` nothing.
-    private func deliver(_ prompt: RadarPrompt, fireDate: Date?) async {
+    ///
+    /// - Returns: whether the request reached the system. The Session true-up is
+    ///   the one caller that has to know — it writes a "this Session has had its
+    ///   prompt" record, and a prompt the category toggle refused was never had.
+    @discardableResult
+    private func deliver(_ prompt: RadarPrompt, fireDate: Date?) async -> Bool {
         // The per-category toggle still applies (SPEC §5: "opt-in per category").
-        guard settings.isEnabled(prompt.category) else { return }
-        guard await notifier.canDeliver() else { return }
+        guard settings.isEnabled(prompt.category) else { return false }
+        guard await notifier.canDeliver() else { return false }
         await notifier.deliver(RadarNotificationBuilder.request(for: prompt, fireDate: fireDate))
+        return true
     }
 
     private func dwellIdentifier(_ visitID: UUID) -> String {
@@ -360,7 +380,7 @@ public final class RadarService {
 
     private func activeSession(asOf now: Date = Date()) -> DerivedSession? {
         guard
-            let modelContext,
+            let modelContext = resolvedContext(),
             let events = try? EventStore.snapshots(in: modelContext),
             let materialized = try? EventStore.materializedSessions(in: modelContext)
         else { return nil }
@@ -371,6 +391,128 @@ public final class RadarService {
             venueExits: store.venueExits(asOf: now),
             asOf: now
         )
+    }
+
+    /// The app's store, resolved on demand.
+    ///
+    /// `start()` normally supplies it, but the Session true-up runs off the log
+    /// path rather than off a geofence — see `projectTrueUp(asOf:)` — so it can be
+    /// the first thing to need a context in a process where Bar Radar itself was
+    /// never started.
+    private func resolvedContext() -> ModelContext? {
+        if modelContext == nil { modelContext = try? TallyRuntime.container().mainContext }
+        return modelContext
+    }
+
+    // MARK: - Session true-up (SPEC §2)
+
+    /// The exit-close half: "a geofence exit delivers immediately (quiet-hours
+    /// exempt — the user is demonstrably out and awake)".
+    ///
+    /// Immediate delivery down the `RadarNotifying` path, which is where the
+    /// exemption lives for the whole Bar Radar family: nothing on it consults
+    /// `QuietHours`. The category declares `.postpone` for the *scheduled* half
+    /// below, and this path simply never asks — a category has one policy, and
+    /// the honest split is to declare the one that can be enforced and make the
+    /// other structural.
+    private func deliverTrueUp(venueID: UUID, closedAt: Date) async {
+        guard let session = closedSession(atVenue: venueID, closedAt: closedAt) else { return }
+        guard !store.hasSpentTrueUp(sessionID: session.id, asOf: closedAt) else { return }
+
+        guard let prompt = SessionTrueUp.prompt(
+            for: session,
+            placeName: venueName(venueID: session.venueID) ?? ""
+        ) else { return }
+
+        // The timeout half may have one pending for this same Session under this
+        // same identifier. Adding a request with a matching identifier replaces
+        // it anyway; cancelling first also covers the case where delivery is
+        // refused, which must not leave a stale projection to fire hours later.
+        notifier.cancel(identifiers: [prompt.requestIdentifier])
+
+        guard await deliver(prompt, fireDate: nil) else { return }
+        store.recordTrueUpDelivered(sessionID: session.id, at: closedAt)
+    }
+
+    /// The timeout-close half: "a timeout close (home, or no geofence) delivers
+    /// with quiet-hours *postpone* semantics."
+    ///
+    /// A Session that closes on the 3 h timeout does so **silently** — no geofence
+    /// fires, nothing wakes the app, and SPEC §2 buys none of that with background
+    /// machinery. So the prompt is projected forward from the log path instead:
+    /// every logged drink schedules one at that Session's current `closesAt`,
+    /// under an identifier keyed by the Session, so the next drink replaces it
+    /// rather than stacking a second banner.
+    ///
+    /// **Why every Session, and not only the unmonitored ones.** A monitored
+    /// venue's true-up belongs to the exit path, so the obvious worry is a
+    /// scheduled one going off while the user is still at the bar. It cannot
+    /// arrive early: each drink pushes the fire date to that drink's own +3 h, so
+    /// the only way it lands is three hours with nothing logged — at which point
+    /// `SessionDeriver` says the Session *has* closed, and "Session at The Anchor
+    /// ended — 4 drinks. Look right?" with a "+1 drink" button is exactly the
+    /// right thing to say to someone who stopped logging. Meanwhile the simple
+    /// rule covers the case venue special-casing would lose outright: a missed
+    /// exit event, which is a normal CoreLocation outcome this module already
+    /// plans for elsewhere. So — schedule for every Session, let each drink push
+    /// it out, and let an exit cancel and replace it.
+    ///
+    /// **Not gated on the Bar Radar master toggle**, unlike everything else in
+    /// this class. This half needs no geofence, no visit, and no location
+    /// permission at all; SPEC §2 names "home" as its case, and Bar Radar never
+    /// applies to Home. Gating it would leave a Settings toggle switched on with
+    /// nothing behind it, which SPEC §9 treats as a lie. The per-category toggle
+    /// in `deliver(_:fireDate:)` is the control that matters here.
+    private func projectTrueUp(asOf now: Date) async {
+        guard let session = activeSession(asOf: now), !session.events.isEmpty else { return }
+        guard !store.hasSpentTrueUp(sessionID: session.id, asOf: now) else { return }
+
+        guard let prompt = SessionTrueUp.prompt(
+            for: session,
+            placeName: venueName(venueID: session.venueID) ?? ""
+        ) else { return }
+
+        let fireDate = SessionTrueUp.fireDate(
+            closesAt: session.closesAt,
+            quietHours: settings.quietHours,
+            calendar: calendar
+        )
+
+        guard await deliver(prompt, fireDate: fireDate) else { return }
+        store.recordTrueUpScheduled(sessionID: session.id, fireDate: fireDate, at: now)
+    }
+
+    /// The Session a geofence exit just closed.
+    ///
+    /// Derived *after* `.recordExit` has been applied, so the exit is already an
+    /// input and the Session's `closesAt` is the exit's own timestamp.
+    private func closedSession(atVenue venueID: UUID, closedAt: Date) -> DerivedSession? {
+        guard
+            let modelContext = resolvedContext(),
+            let sessions = try? deriver.derive(
+                in: modelContext,
+                venueExits: store.venueExits(asOf: closedAt)
+            )
+        else { return nil }
+
+        let candidates = sessions.filter {
+            $0.venueID == venueID && !$0.events.isEmpty && $0.isClosed(asOf: closedAt)
+        }
+        guard let session = candidates.last else { return nil }
+
+        // An exit that arrives long after the Session had already timed out is not
+        // what closed it, and reconciling last Tuesday's outing because a stale
+        // region event finally landed would be worse than silence. The projected
+        // half owns anything that closed on the clock.
+        guard closedAt.timeIntervalSince(session.closesAt) <= deriver.configuration.inactivityWindow else {
+            return nil
+        }
+        return session
+    }
+
+    private func venueName(venueID: UUID?) -> String? {
+        guard let venueID, let modelContext = resolvedContext() else { return nil }
+        return (try? EventStore.venue(id: venueID, in: modelContext))?.name
     }
 
     // MARK: - Tier 2
@@ -459,7 +601,14 @@ public final class RadarService {
 
         case RadarIdentifiers.notDrinkingAction:
             // SPEC §2: "suppresses all further prompts for this visit".
-            Task { await run(.declined(visitID: payload.visitID, at: date)) }
+            guard let visitID = payload.visitID else { return }
+            Task { await run(.declined(visitID: visitID, at: date)) }
+
+        case RadarIdentifiers.looksRightAction:
+            // SPEC §2: "**Looks right** (dismisses)". Deliberately nothing else —
+            // the Session was already right, and the one-per-Session ledger closed
+            // the book when this was delivered.
+            break
 
         case RadarIdentifiers.notABarAction:
             suppressPlace(payload: payload, at: date)
@@ -473,10 +622,10 @@ public final class RadarService {
         default:
             // The default action opens the app, which is not an answer to
             // anything — but it does mean the follow-up has been seen. The
-            // mid-Session reminder needs no equivalent: its fire date is its own
-            // receipt, and the two-per-visit cap is settled from that.
-            if payload.kind == .dwell {
-                Task { await run(.dwellDelivered(visitID: payload.visitID, at: date)) }
+            // mid-Session reminder and the true-up need no equivalent: their fire
+            // dates are their own receipts, and both budgets are settled from that.
+            if payload.kind == .dwell, let visitID = payload.visitID {
+                Task { await run(.dwellDelivered(visitID: visitID, at: date)) }
             }
         }
     }
@@ -487,7 +636,7 @@ public final class RadarService {
     /// Tier 2's version is also SPEC §2's graduation rule: "a confirmed Session
     /// at a discovered bar creates the Venue and counts toward frequented status".
     private func logDrink(payload: RadarActionPayload, at date: Date) {
-        guard let modelContext else { return }
+        guard let modelContext = resolvedContext() else { return }
 
         var venue: Venue?
         if let venueID = payload.venueID {
@@ -496,9 +645,16 @@ public final class RadarService {
             venue = try? VenueWriter.resolveVenue(for: place.candidate, in: modelContext)
         }
 
+        // SPEC §2's true-up: "+1 drink — retro-logs, venue-tagged, **timestamped
+        // at close**". The tap can be hours after the Session ended, and a drink
+        // stamped *now* would open a brand-new Session instead of correcting the
+        // closed one. Every other prompt speaks about the present and stamps the
+        // tap.
+        let timestamp = payload.trueUp?.logAt ?? date
+
         guard let event = try? EventStore.logDrink(
             type: .alcoholic,
-            timestamp: date,
+            timestamp: timestamp,
             source: TallyRuntime.eventSource,
             // No coordinates: the venue is known, and inventing a fix from its
             // centre would put a location on an event that never had one.
@@ -507,17 +663,18 @@ public final class RadarService {
         ) else { return }
 
         // Tag the outing, not the tap — same as confirming a check-in.
-        if let venue, let session = activeSession(asOf: date), session.venueID == nil {
+        if let venue, let session = activeSession(asOf: timestamp), session.venueID == nil {
             let ids = session.eventIDs.contains(event.id) ? session.eventIDs : session.eventIDs + [event.id]
             try? VenueWriter.tag(eventIDs: ids, with: venue, in: modelContext)
         }
 
         // SPEC §5's pacing nudge is event-driven off the log path, and this is a
-        // log path.
-        NotificationService.shared.sessionDidLogDrink(type: .alcoholic, in: modelContext, at: date)
+        // log path. It ignores back-dated events itself, which is the right answer
+        // for a true-up correction: nobody needs pacing advice about last night.
+        NotificationService.shared.sessionDidLogDrink(type: .alcoholic, in: modelContext, at: timestamp)
 
         Task {
-            await run(.drinkLogged(at: date))
+            await drinkLogged(at: date)
             await refresh(asOf: date)
         }
     }
@@ -543,7 +700,11 @@ public final class RadarService {
         store.clearArrivalDismissals(venueID: venueID)
 
         Task {
-            await run(.declined(visitID: payload.visitID, at: Date()))
+            // Muting arrives from a prompt that always has a visit; the guard is
+            // for the type, not for a case that happens.
+            if let visitID = payload.visitID {
+                await run(.declined(visitID: visitID, at: Date()))
+            }
             await refresh()
         }
     }
@@ -553,8 +714,9 @@ public final class RadarService {
     private func recordDismissal(payload: RadarActionPayload, at date: Date) {
         // A swiped-away mid-Session reminder is not a vote against the venue —
         // the user is demonstrably logging drinks there — so it must not push
-        // the arrival prompt toward offering to mute the place.
-        guard payload.kind != .sessionReminder else { return }
+        // the arrival prompt toward offering to mute the place. Nor is a
+        // swiped-away true-up, which is a receipt for an outing that is over.
+        guard payload.kind != .sessionReminder, payload.kind != .trueUp else { return }
 
         if let venueID = payload.venueID, payload.kind != .discovery {
             store.recordArrivalDismissal(venueID: venueID, at: date)
@@ -631,7 +793,7 @@ public final class RadarService {
         // at the bar right now.
         guard abs(now.timeIntervalSince(latest)) < 10 * 60 else { return }
 
-        Task { await run(.drinkLogged(at: latest)) }
+        Task { await drinkLogged(at: latest) }
     }
 
     private func latestEventTimestamp() -> Date? {
@@ -644,6 +806,12 @@ public final class RadarService {
 
     // MARK: - Cancellation & erase
 
+    /// Everything the *venue* tiers have pending.
+    ///
+    /// Session true-ups are deliberately not on this list: `stop()` uses it, and
+    /// turning Bar Radar off does not un-close a Session that already happened —
+    /// see `projectTrueUp(asOf:)` for why that half runs without the master
+    /// toggle. `eraseAll()` pulls them, because then the Session is gone too.
     private func cancelEverythingPending() async {
         let prefixes = [
             TallyNotificationCategory.barRadarArrival.identifier,
@@ -657,10 +825,18 @@ public final class RadarService {
         notifier.cancel(identifiers: ours)
     }
 
+    private func cancelPendingTrueUps() async {
+        let prefix = TallyNotificationCategory.sessionTrueUp.identifier
+        let ours = await notifier.pendingIdentifiers().filter { $0.hasPrefix(prefix) }
+        guard !ours.isEmpty else { return }
+        notifier.cancel(identifiers: ours)
+    }
+
     /// Settings → Erase all data (SPEC §9). Every suppression rule Bar Radar
     /// remembers is about events that no longer exist.
     public func eraseAll() async {
         await cancelEverythingPending()
+        await cancelPendingTrueUps()
         store.reset()
         lastSeenEventAt = nil
         lastDiscoveryRejection = nil

@@ -10,6 +10,7 @@ import Foundation
 /// | Streak protection | Evening of a day that would break a streak | Wave 2 |
 /// | Bar Radar arrival / dwell / discovery | Geofence + visit monitoring (§2) | Wave 3 `radar` |
 /// | Session reminder | 60 min since the last log, Session active, still at the venue (§2) | Wave 3 `radar` |
+/// | Session true-up | A Session with ≥ 1 drink closes (§2) | Wave 3 `radar` |
 /// | Activity insight | New qualifying correlation (§4) | Wave 3 `insights` |
 ///
 /// **Wave 3's checklist** — the cases already exist here so the toggles, the
@@ -34,6 +35,7 @@ public enum TallyNotificationCategory: String, CaseIterable, Identifiable, Codab
     case barRadarDwell
     case barRadarDiscovery
     case sessionReminder
+    case sessionTrueUp
     case activityInsight
 
     public var id: String { rawValue }
@@ -58,6 +60,7 @@ public enum TallyNotificationCategory: String, CaseIterable, Identifiable, Codab
         case .barRadarDwell: "Bar Radar dwell"
         case .barRadarDiscovery: "Bar Radar discovery"
         case .sessionReminder: "Session reminder"
+        case .sessionTrueUp: "Session true-up"
         case .activityInsight: "Activity insight"
         }
     }
@@ -73,6 +76,7 @@ public enum TallyNotificationCategory: String, CaseIterable, Identifiable, Codab
         case .barRadarDwell: "Still at the bar 45 minutes later, nothing logged."
         case .barRadarDiscovery: "A bar you've never logged, at most three prompts a week."
         case .sessionReminder: "Mid-Session, an hour after your last drink and still at the bar. At most twice a visit."
+        case .sessionTrueUp: "When a Session ends: what it counted, and a way to correct it. Once per Session."
         case .activityInsight: "A new correlation between drinking and your activity. At most one a week."
         }
     }
@@ -87,6 +91,7 @@ public enum TallyNotificationCategory: String, CaseIterable, Identifiable, Codab
         case .barRadarDwell: "clock"
         case .barRadarDiscovery: "binoculars"
         case .sessionReminder: "clock.arrow.circlepath"
+        case .sessionTrueUp: "checklist"
         case .activityInsight: "figure.run"
         }
     }
@@ -117,6 +122,20 @@ public enum TallyNotificationCategory: String, CaseIterable, Identifiable, Codab
         // The Bar Radar family, which now includes the mid-Session reminder: it
         // fires at the bar, mid-outing, or not at all.
         case .barRadarArrival, .barRadarDwell, .barRadarDiscovery, .sessionReminder: .ignore
+        // The Session true-up is the one Bar Radar prompt that wants *both*, and
+        // a category has one policy, so it declares the one it can actually
+        // enforce. SPEC §2: "a geofence exit delivers immediately (quiet-hours
+        // exempt — the user is demonstrably out and awake); a timeout close
+        // (home, or no geofence) delivers with quiet-hours *postpone* semantics,
+        // so a Session that expires at 2 a.m. reconciles in the morning."
+        //
+        // Only the timeout half is *scheduled*, and scheduling is the only moment
+        // a policy can be applied to a `UNNotificationRequest` — so `.postpone` is
+        // the honest declaration. The exit half is delivered immediately by
+        // `RadarService` down the `RadarNotifying` path, which consults nothing:
+        // the exemption there is structural, exactly as it is for the rest of the
+        // family, rather than something this switch could express.
+        case .sessionTrueUp: .postpone
         case .weeklyDigest, .trendAlert, .activityInsight: .postpone
         case .pacingNudge, .streakProtection: .drop
         }
@@ -143,7 +162,8 @@ public enum TallyNotificationCategory: String, CaseIterable, Identifiable, Codab
     public var isImplemented: Bool {
         switch self {
         case .weeklyDigest, .trendAlert, .pacingNudge, .streakProtection, .activityInsight,
-             .barRadarArrival, .barRadarDwell, .barRadarDiscovery, .sessionReminder: true
+             .barRadarArrival, .barRadarDwell, .barRadarDiscovery, .sessionReminder,
+             .sessionTrueUp: true
         }
     }
 
