@@ -162,6 +162,29 @@ Opt-in cross-reference of drinking against activity data, to answer one question
 - **Refresh:** HealthKit background delivery (`HKObserverQuery`) re-runs the engine as new activity data arrives; insights are recomputed, never persisted, per §1's derive-don't-store rule.
 - **Absence is fine:** no HealthKit permission, or no correlation found, simply means the cards don't appear. Nothing else in the app depends on this feature.
 
+### Recovery context (fibrinolysis model)
+
+An opt-in layer for users recovering from a thrombotic event, surfacing how drinking transiently suppresses the fibrinolytic system (alcohol acutely raises PAI-1, inhibiting the t-PA-driven breakdown of clots — with the suppression peaking **hours after** blood alcohol falls, i.e., the morning after).
+
+**Honesty rules, non-negotiable:**
+
+- Everything shown is a **model of published population dose-response, never a measurement** — every surface says "modeled." No clot-risk scores, no red/green safety framing, no thresholds that read as permission, no prescriptions. Output is burden and duration only: *how much, until when.*
+- Off by default behind a Settings toggle ("Recovery context"); zero footprint when off. Enabling shows a one-time explainer: what the model is, what it is not, and that a clinician — not the app — is the authority, especially regarding anticoagulants.
+
+**The model** (parameters documented in code, tuned from published acute-PAI-1 studies; deterministic and pure, derived from the event log per §1):
+
+- Each alcoholic drink contributes a **suppression pulse**: no effect during ~45 min absorption, rising to a peak ~4 h after the drink, then exponential decay with a ~8 h half-life.
+- **Compression penalty:** pulses from drinks landing within a 2 h window compound superlinearly (binge patterns suppress disproportionately — the strongest signal in the literature). NA drinks contribute nothing; their benefit is the intake they displace.
+- Pulses sum into a dimensionless **suppression index** (0 = baseline, capped at 100), from which derive: the live curve, the projected return-to-baseline time, and per-Session totals.
+
+**Surfaces (recovery context on):**
+
+- **Suppression curve card** on the Tally screen and widget: the live curve with now-marker, peak time, and projected return to baseline — *"Modeled fibrinolytic suppression: elevated · peaks ~2 a.m. · baseline ~1 p.m."* Amber-scale intensity only; never green.
+- **Session rebound classification** on Session detail and the true-up: peak drinking density per 90 min classifies the Session *paced / elevated / compressed*, with one factual line about the modeled next-morning rebound.
+- **Reframed copy:** dry-streak captions, the pacing nudge, and a weekly Trends tile (modeled suppression-hours, this week vs last) gain the fibrinolytic why.
+
+**Explicitly out (v1):** resting-HR/HRV cross-checks (candidate follow-on via the §4 insights engine), any anticoagulant-specific guidance, and any notification category — recovery context changes what existing surfaces say, it does not add new pings.
+
 ---
 
 ## 5. Notifications
@@ -262,7 +285,7 @@ Lives on the You tab. Every configurable default named elsewhere in this spec ha
 - **Venues:** edit Home (pin + radius); saved venue list — rename, recategorize, per-venue Bar Radar mute; suppressed-places list with un-suppress.
 - **Bar Radar:** master toggle (triggers the Always upgrade flow, §2); discovery sub-toggle (on by default); dwell reminder delay (default 45 min); mid-Session reminder interval (default 60 min); discovery hours (default 4 pm–2 am); live permission status.
 - **Notifications:** the §5 per-category toggles; quiet-hours window; live permission status.
-- **Health:** connect/disconnect HealthKit reads (§4); write-to-Health toggle (off by default); morning-after Session threshold (default ≥ 2 drinks).
+- **Health:** connect/disconnect HealthKit reads (§4); write-to-Health toggle (off by default); morning-after Session threshold (default ≥ 2 drinks); **Recovery context** toggle (§4, off by default, with its explainer).
 - **iCloud sync:** toggle (on by default when signed in, §8); last-sync status.
 - **Data:** export everything as CSV/JSON via the share sheet; **Erase all data** (destructive, double-confirm, also clears the CloudKit private database when sync is on).
 - **About:** privacy explainer (what leaves the device: nothing), standard-drink guidelines link.
@@ -282,7 +305,7 @@ The icon is the **Japanese tally symbol 正** — the five-stroke character used
 - All data on-device or in the user's private iCloud database. No analytics, no third-party SDKs, no custom server.
 - Location is captured only at the moment of logging. The exception is opt-in Bar Radar (§2), which requests Always permission only when enabled. Tier 1 registers geofences at chosen venues, evaluated by the OS — the app receives entry/exit events only. The discovery tier (on by default once Bar Radar is enabled, with its own toggle to turn off) additionally uses OS visit monitoring, which reports places you linger so the app can match them against bar POIs on-device; non-matches are discarded immediately and never stored. The Bar Radar opt-in flow describes both tiers before requesting the permission upgrade. Neither tier involves a continuous location stream, and disabling Bar Radar drops back to When-In-Use.
 - **HealthKit**, both directions optional and off by default: write `numberOfAlcoholicBeverages`; read activity metrics for health insights (§4). HealthKit data is never written to the app's own store or to CloudKit — the insights engine reads each device's local HealthKit store at computation time and persists nothing (HealthKit handles its own cross-device sync). Revoking the permission removes the insight surfaces and nothing else.
-- Not a medical device; no health claims. Insights report correlations in the user's own data, never diagnoses or medical advice. Settings links to standard-drink guidelines.
+- Not a medical device; no health claims. Insights report correlations in the user's own data, never diagnoses or medical advice. The recovery-context layer (§4) is an educational population model, opt-in, computed on-device from the event log, and bound by its own honesty rules. Settings links to standard-drink guidelines.
 
 ---
 
