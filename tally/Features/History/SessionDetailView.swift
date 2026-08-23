@@ -38,6 +38,15 @@ public struct SessionDetailView: View {
         }
     }
 
+    /// SPEC §4's recovery-context toggle, watched rather than read once.
+    ///
+    /// The flag's home is the App Group, so the widget sees the same answer, and
+    /// `RecoveryContext.setEnabled` mirrors every write into `.standard` — the
+    /// suite `@AppStorage` observes. Reading both is what makes the row appear
+    /// and disappear the moment Settings is closed, without this screen knowing
+    /// anything about the Settings tab.
+    @AppStorage(RecoveryContext.enabledKey) private var recoveryMirror = false
+
     @State private var model: HistoryModel?
     @State private var activeSheet: DetailSheet?
     @State private var noteDraft = ""
@@ -101,7 +110,12 @@ public struct SessionDetailView: View {
         VStack(alignment: .leading, spacing: 16) {
             header(session: session, model: model)
             timeline(session: session)
-            summary(session: session, model: model)
+
+            VStack(alignment: .leading, spacing: 9) {
+                summary(session: session, model: model)
+                reboundRow(session: session)
+            }
+
             actions(session: session, model: model)
 
             if session.venueID == nil {
@@ -197,6 +211,56 @@ public struct SessionDetailView: View {
                 .minimumScaleFactor(0.7)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    // MARK: Rebound classification (SPEC §4)
+
+    /// One quiet line under the summary: what this night's *density* models for
+    /// the morning after.
+    ///
+    /// > **Session rebound classification** on Session detail and the true-up:
+    /// > peak drinking density per 90 min classifies the Session *paced /
+    /// > elevated / compressed*, with one factual line about the modeled
+    /// > next-morning rebound.
+    ///
+    /// SPEC §4's honesty rules shape every choice here. The sentence is
+    /// `ReboundClass.summary` verbatim — it is the copy that says "modeled", and
+    /// paraphrasing it in the view is how a model turns into a claim. The ink is
+    /// the muted one, because this is context, not a verdict on the Session. The
+    /// dot is one hue at three intensities: "Amber-scale intensity only; never
+    /// green" — and never red either, which would be the safety judgement the
+    /// model explicitly cannot make.
+    ///
+    /// Hidden entirely when recovery context is off, or when the night had
+    /// nothing alcoholic in it — see `DerivedSession.reboundClass(...)`, which is
+    /// the same rule the Session true-up uses.
+    @ViewBuilder
+    private func reboundRow(session: DerivedSession) -> some View {
+        if let rebound = session.reboundClass(recoveryEnabled: recoveryEnabled) {
+            HStack(alignment: .top, spacing: 8) {
+                Circle()
+                    .fill(PlacePalette.amberBright.opacity(rebound.dotOpacity))
+                    .frame(width: 7, height: 7)
+                    .padding(.top, 4.5)
+
+                Text(rebound.summary)
+                    .font(.system(size: 12.5))
+                    .foregroundStyle(PlacePalette.ink2)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                Spacer(minLength: 0)
+            }
+            .padding(.horizontal, 4)
+            .accessibilityElement(children: .combine)
+            .accessibilityIdentifier(HistoryA11y.reboundClass)
+        }
+    }
+
+    /// Either suite saying yes is a yes: `RecoveryContext` writes the App Group
+    /// and mirrors to `.standard`, and this screen would rather repaint once too
+    /// often than show a stale row.
+    private var recoveryEnabled: Bool {
+        recoveryMirror || RecoveryContext.isEnabled()
     }
 
     // MARK: Actions
@@ -353,6 +417,23 @@ public struct SessionDetailView: View {
             resolvedPermissions = LivePermissionsService()
         }
         locationAuthorization = activePermissions?.locationAuthorization() ?? .notDetermined
+    }
+}
+
+// MARK: - Rebound dot
+
+private extension FibrinolysisModel.ReboundClass {
+
+    /// The leading dot's weight — one amber, three intensities, scaled to the
+    /// class rather than to any number the model produced (SPEC §4: "Amber-scale
+    /// intensity only; never green"). The dot is a severity cue, not a reading:
+    /// nothing here encodes the index itself.
+    var dotOpacity: Double {
+        switch self {
+        case .paced: 0.32
+        case .elevated: 0.62
+        case .compressed: 1.0
+        }
     }
 }
 

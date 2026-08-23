@@ -277,7 +277,10 @@ public enum RadarNotificationBuilder {
             content.title = RadarCopy.TrueUp.title(prompt.placeName)
             content.body = RadarCopy.TrueUp.body(
                 alcoholic: prompt.trueUp?.alcoholicCount ?? 0,
-                nonAlcoholic: prompt.trueUp?.nonAlcoholicCount ?? 0
+                nonAlcoholic: prompt.trueUp?.nonAlcoholicCount ?? 0,
+                // SPEC §4's second line, or nothing at all: the prompt carries a
+                // class only when recovery context was on where it was planned.
+                rebound: prompt.reboundClass
             )
         }
 

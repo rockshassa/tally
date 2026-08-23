@@ -1,4 +1,5 @@
 import Foundation
+import TallyKit
 
 /// **Every word Bar Radar puts on a lock screen or in a primer.**
 ///
@@ -56,11 +57,26 @@ enum RadarCopy {
             place.isEmpty ? "Session ended" : "Session at \(place) ended"
         }
 
-        /// "4 drinks, 1 water. Look right?"
+        /// "4 drinks, 1 water. Look right?", and — with SPEC §4's recovery
+        /// context on — a second line: "Compressed — this pattern models the
+        /// strongest next-morning suppression."
         ///
         /// A zero is omitted rather than printed: "0 waters" reads as a comment on
         /// the user, which SPEC §5 rules out.
-        static func body(alcoholic: Int, nonAlcoholic: Int) -> String {
+        ///
+        /// - Parameter rebound: the Session's modeled rebound class, already
+        ///   decided by `SessionTrueUp` from the closed `DerivedSession`. This
+        ///   type never works out whether the line belongs — it only places it,
+        ///   in the model's own words, because `ReboundClass.summary` is the
+        ///   sentence that says "modeled" and paraphrasing it here would turn a
+        ///   model into a claim. `nil` — recovery context off, which is the
+        ///   default — returns the body byte-identical to the version that
+        ///   predates the recovery layer (SPEC §4: "zero footprint when off").
+        static func body(
+            alcoholic: Int,
+            nonAlcoholic: Int,
+            rebound: FibrinolysisModel.ReboundClass? = nil
+        ) -> String {
             var clauses: [String] = []
             if alcoholic > 0 {
                 clauses.append("\(alcoholic) \(alcoholic == 1 ? "drink" : "drinks")")
@@ -68,8 +84,9 @@ enum RadarCopy {
             if nonAlcoholic > 0 {
                 clauses.append("\(nonAlcoholic) \(nonAlcoholic == 1 ? "water" : "waters")")
             }
-            guard !clauses.isEmpty else { return "Look right?" }
-            return clauses.joined(separator: ", ") + ". Look right?"
+            let counts = clauses.isEmpty ? "Look right?" : clauses.joined(separator: ", ") + ". Look right?"
+            guard let rebound else { return counts }
+            return counts + "\n" + rebound.summary
         }
     }
 

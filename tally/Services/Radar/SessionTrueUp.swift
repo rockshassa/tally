@@ -13,12 +13,15 @@ import TallyKit
 /// > semantics, so a Session that expires at 2 a.m. reconciles in the morning
 /// > instead of waking anyone.
 ///
-/// Three decisions live here, and all three are pure functions of a
+/// Four decisions live here, and all four are pure functions of a
 /// `DerivedSession` and the user's settings, so `RadarService` performs them
 /// rather than deciding them — the same seam `RadarVisitMachine` sits behind:
 /// * **what the prompt says** — the counts, straight off the closed Session;
 /// * **when a timeout close should fire** — `closesAt`, shifted out of quiet hours;
-/// * **where a retro "+1 drink" lands** — inside the Session, not after it.
+/// * **where a retro "+1 drink" lands** — inside the Session, not after it;
+/// * **whether SPEC §4's rebound line rides along** — decided here, where the
+///   closed `DerivedSession` still exists, rather than in the notification
+///   builder, which sees only two counts.
 nonisolated public enum SessionTrueUp {
 
     // MARK: - The prompt
@@ -41,13 +44,36 @@ nonisolated public enum SessionTrueUp {
     /// - Parameter placeName: the venue's name, or `""` for an untagged Session —
     ///   `RadarCopy.TrueUp` says "Session ended" rather than naming a place it
     ///   does not know.
-    public static func prompt(for session: DerivedSession, placeName: String) -> RadarPrompt? {
+    /// - Parameter recoveryEnabled: SPEC §4's opt-in recovery context. When it is
+    ///   on, the true-up gains one factual line about the modeled next-morning
+    ///   rebound —
+    ///
+    ///   > **Session rebound classification** on Session detail *and the
+    ///   > true-up*.
+    ///
+    ///   — and when it is off the prompt carries no class, so the delivered body
+    ///   is byte-identical to the one this app sent before the recovery layer
+    ///   existed. A parameter rather than a read inside the copy: the flag is
+    ///   defaulted to the stored toggle so `RadarService` needs to know nothing
+    ///   about it, and injectable so either state can be exercised without
+    ///   writing to global defaults.
+    /// - Parameter model: the classifier, injectable for the same reason.
+    public static func prompt(
+        for session: DerivedSession,
+        placeName: String,
+        recoveryEnabled: Bool = RecoveryContext.isEnabled(),
+        model: FibrinolysisModel = FibrinolysisModel()
+    ) -> RadarPrompt? {
         guard let trueUp = trueUp(for: session) else { return nil }
         return RadarPrompt(
             kind: .trueUp,
             placeName: placeName,
             venueID: session.venueID,
-            trueUp: trueUp
+            trueUp: trueUp,
+            // The same rule the Session detail row uses, so the two surfaces SPEC
+            // §4 names cannot disagree about a night — including its "nothing
+            // alcoholic logged, so say nothing" half.
+            reboundClass: session.reboundClass(recoveryEnabled: recoveryEnabled, model: model)
         )
     }
 

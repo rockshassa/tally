@@ -62,6 +62,20 @@ nonisolated public enum SessionFormatting {
     }
 }
 
+// MARK: - Accessibility
+
+/// The identifiers History's own rows carry.
+///
+/// `A11y.History` (in `tally/Shared`) names the screen the shell hosts; anything
+/// drawn *inside* a History view is named here, the same split `SettingsA11y`
+/// uses for Settings. Renaming one breaks the XCUITest suite, so these strings
+/// are API.
+enum HistoryA11y {
+
+    /// SPEC §4's Session rebound classification line, on Session detail.
+    static let reboundClass = "history.reboundClass"
+}
+
 // MARK: - Session presentation
 
 public extension DerivedSession {
@@ -83,5 +97,32 @@ public extension DerivedSession {
         if lhs.pinned != rhs.pinned { return lhs.pinned }
         if lhs.startedAt != rhs.startedAt { return lhs.startedAt > rhs.startedAt }
         return lhs.id.uuidString < rhs.id.uuidString
+    }
+
+    // MARK: Recovery context (SPEC §4)
+
+    /// SPEC §4's *Session rebound classification*: "peak drinking density per
+    /// 90 min classifies the Session paced / elevated / compressed, with one
+    /// factual line about the modeled next-morning rebound."
+    ///
+    /// `nil` — draw nothing at all — is the honest answer in two cases, and both
+    /// are load-bearing:
+    /// * **recovery context off**, which SPEC §4 promises is "zero footprint";
+    /// * **nothing alcoholic logged**, where the model has no pulse to model and
+    ///   "Paced — modeled next-morning rebound low." would be a sentence about
+    ///   nothing. `FibrinolysisModel.classify` answers `.paced` for an empty
+    ///   night by construction, so the caller — not the model — owns the
+    ///   decision to stay quiet.
+    ///
+    /// One pure function rather than two, because the Session detail row and the
+    /// Session true-up (SPEC §2) must agree about when the line appears. The
+    /// toggle is a parameter defaulted to the stored one, so either state can be
+    /// rendered — or tested — without writing to global defaults.
+    nonisolated func reboundClass(
+        recoveryEnabled: Bool = RecoveryContext.isEnabled(),
+        model: FibrinolysisModel = FibrinolysisModel()
+    ) -> FibrinolysisModel.ReboundClass? {
+        guard recoveryEnabled, alcoholicCount > 0 else { return nil }
+        return model.classify(self)
     }
 }
