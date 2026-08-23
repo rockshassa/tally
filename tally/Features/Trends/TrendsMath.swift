@@ -201,6 +201,24 @@ public struct TrendsTileSet: Hashable, Sendable {
     )
 }
 
+/// The recovery layer's weekly tile (SPEC §4: *"a weekly Trends tile (modeled
+/// suppression-hours, this week vs last)"*).
+///
+/// Both figures are **modeled hours above baseline**, never a measurement — see
+/// `TrendsMath.suppressionHours`. `nil` on `TrendsData` whenever recovery context
+/// is off, which is how the tile disappears entirely rather than rendering zeros.
+public struct TrendsSuppression: Hashable, Sendable {
+
+    /// Modeled hours above baseline in the 7 × 24 h ending at `now`.
+    public let thisWeekHours: Double
+
+    /// The same window, shifted back a week.
+    public let lastWeekHours: Double
+
+    /// Negative means less modeled suppression than last week.
+    public var deltaHours: Double { thisWeekHours - lastWeekHours }
+}
+
 // MARK: - The whole screen's data
 
 /// One immutable snapshot of everything Trends draws. Rebuilt wholesale on every
@@ -214,6 +232,11 @@ public struct TrendsData: Sendable {
     public let heatmap: [TrendsHeatmapCell]
     public let sessionStats: TrendsSessionStats
     public let tiles: TrendsTileSet
+
+    /// SPEC §4's recovery context, or `nil` when the layer is off — off means
+    /// "zero footprint", so the number is not computed, not stored, and not
+    /// rendered.
+    public let suppression: TrendsSuppression?
 
     /// Events in the whole log. Zero means the empty state; one means every
     /// chart still has to render something sane (PLAN Gate 2).
@@ -230,6 +253,7 @@ public struct TrendsData: Sendable {
             heatmap: [],
             sessionStats: .empty,
             tiles: .empty,
+            suppression: nil,
             eventCount: 0
         )
     }
@@ -606,6 +630,107 @@ public enum TrendsMath {
             sessionsPerWeek: Double(sessions.count) / weeks,
             longest: longest,
             bestPaced: paced
+        )
+    }
+
+    // MARK: Modeled suppression (SPEC §4 "Recovery context")
+
+    /// How far back a drink can still push the curve above baseline. Past this,
+    /// `FibrinolysisModel`'s exponential decay has taken even a heavily
+    /// compressed night's pulses far under the baseline threshold, so drinks
+    /// older than this are dropped before sampling — the integral is over a week,
+    /// but the log behind it can be years long.
+    static let suppressionLeadIn: TimeInterval = 72 * 3600
+
+    /// **Modeled suppression-hours** over `[start, end)`: the time the
+    /// `FibrinolysisModel` curve spends above its baseline threshold.
+    ///
+    /// Integrating the above-baseline stretch of the curve rather than the curve
+    /// itself is what makes the answer quotable: SPEC §4 allows burden and
+    /// duration only, and hours is the one unit a dimensionless index can
+    /// honestly be reported in. Never a measurement — this is a population
+    /// dose-response evaluated against the event log, and every surface that
+    /// shows it says "modeled".
+    ///
+    /// Two details the caller does not have to think about:
+    ///
+    /// * **Drinks before the window still count inside it.** Saturday's last
+    ///   drink peaks on Sunday morning — that lag is the entire point of the
+    ///   model — so the sampler sees `suppressionLeadIn` of earlier drinks and
+    ///   counts only the hours that land inside the window.
+    /// * **Hours are clipped to the window.** A Sunday-night drink whose curve
+    ///   runs into Monday contributes only its Sunday hours here, and the rest to
+    ///   the next window. Consecutive windows therefore partition the timeline
+    ///   with nothing double-counted and nothing lost.
+    ///
+    /// Sampling is `step`-spaced with linear interpolation across the baseline
+    /// crossing, so the result is far finer than the step: at the 15-minute
+    /// default the error on a single pulse is well under a minute.
+    public static func suppressionHours(
+        events: [DrinkEventSnapshot],
+        from start: Date,
+        to end: Date,
+        model: FibrinolysisModel = FibrinolysisModel(),
+        step: TimeInterval = 15 * 60
+    ) -> Double {
+
+        guard end > start, step > 0 else { return 0 }
+
+        let windowEvents = events.filter {
+            $0.type == .alcoholic
+                && $0.timestamp < end
+                && $0.timestamp >= start.addingTimeInterval(-suppressionLeadIn)
+        }
+        guard !windowEvents.isEmpty else { return 0 }
+
+        let samples = model.curve(from: start, to: end, step: step, events: windowEvents)
+        guard samples.count > 1 else { return 0 }
+
+        let threshold = model.configuration.baselineThreshold
+        var seconds: TimeInterval = 0
+
+        for (lhs, rhs) in zip(samples, samples.dropFirst()) {
+            let span = rhs.date.timeIntervalSince(lhs.date)
+            let wasAbove = lhs.index > threshold
+            let isAbove = rhs.index > threshold
+
+            switch (wasAbove, isAbove) {
+            case (true, true):
+                seconds += span
+            case (false, false):
+                break
+            case (true, false), (false, true):
+                // Where the straight line between the two samples crosses.
+                let rise = rhs.index - lhs.index
+                let crossing = rise == 0 ? 0 : (threshold - lhs.index) / rise
+                let fraction = min(max(crossing, 0), 1)
+                seconds += span * (wasAbove ? fraction : 1 - fraction)
+            }
+        }
+
+        return seconds / 3600
+    }
+
+    /// The tile's two numbers: the 7 × 24 h ending at `now`, and the 7 × 24 h
+    /// before that.
+    ///
+    /// Rolling windows rather than calendar weeks, so the comparison is
+    /// like-for-like — a calendar "this week" is a partial week until Saturday
+    /// night, and a tile that shrank every Monday would be describing the
+    /// calendar rather than the drinking.
+    public static func suppression(
+        events: [DrinkEventSnapshot],
+        now: Date,
+        model: FibrinolysisModel = FibrinolysisModel()
+    ) -> TrendsSuppression {
+
+        let week: TimeInterval = 7 * 86_400
+        let thisWeekStart = now.addingTimeInterval(-week)
+        let lastWeekStart = thisWeekStart.addingTimeInterval(-week)
+
+        return TrendsSuppression(
+            thisWeekHours: suppressionHours(events: events, from: thisWeekStart, to: now, model: model),
+            lastWeekHours: suppressionHours(events: events, from: lastWeekStart, to: thisWeekStart, model: model)
         )
     }
 

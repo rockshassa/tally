@@ -118,6 +118,16 @@ public struct SettingsScreen: View {
     @State private var exportBundle: TallyExport.Bundle?
     @State private var isConfirmingErase = false
     @State private var isConfirmingEraseFinally = false
+    @State private var isShowingRecoveryExplainer = false
+
+    /// SPEC §4's recovery layer, read through `@AppStorage` so the row repaints
+    /// the moment the value moves. `RecoveryContext` owns the writes — it mirrors
+    /// the App Group (what the widget reads) into `.standard` (what this sees),
+    /// so this screen never writes the key directly.
+    @AppStorage(RecoveryContext.enabledKey) private var recoveryEnabled = false
+
+    /// One explainer, ever (SPEC §4). App-local: the widget has no use for it.
+    @AppStorage(RecoveryContext.explainerSeenKey) private var recoveryExplainerSeen = false
 
     /// Write-through bindings into the injected settings object. `@Bindable` as
     /// a stored property would fight the initializer, and the sections are
@@ -146,6 +156,7 @@ public struct SettingsScreen: View {
         .task {
             await refreshPermissionStatus()
             refreshExport()
+            mirrorRecoveryPreference()
         }
         .onChange(of: scenePhase) { _, phase in
             guard phase == .active else { return }
@@ -156,6 +167,18 @@ public struct SettingsScreen: View {
                 primerRequest = nil
                 Task { await refreshPermissionStatus() }
             }
+        }
+        .sheet(isPresented: $isShowingRecoveryExplainer) {
+            RecoveryExplainerSheet(
+                confirm: {
+                    // The confirm *is* the enable (SPEC §4): until this runs, the
+                    // toggle has not moved and no recovery surface exists.
+                    recoveryExplainerSeen = true
+                    RecoveryContext.setEnabled(true)
+                    isShowingRecoveryExplainer = false
+                },
+                cancel: { isShowingRecoveryExplainer = false }
+            )
         }
         .confirmationDialog(
             "Erase all data?",
@@ -524,6 +547,11 @@ public struct SettingsScreen: View {
                     .foregroundStyle(TallyColor.inkSecondary)
                     .settingsRowBackground()
             }
+
+            // Outside the HealthKit branch on purpose: the recovery layer is
+            // derived from Tally's own event log (SPEC §4), so it works on a
+            // device where HealthKit does not.
+            recoveryRow
         } header: {
             SettingsSectionHeader(title: "Health")
         } footer: {
@@ -531,6 +559,58 @@ public struct SettingsScreen: View {
                 text: "Insights compare you against your own baseline and appear only when there's enough data to mean something."
             )
         }
+    }
+
+    // MARK: - Recovery context (SPEC §4, §10)
+
+    /// SPEC §9's Health section, last row: *"Recovery context toggle (§4, off by
+    /// default, with its explainer)."* One factual subtitle — the layer's claim
+    /// about itself, stated the way the layer states everything else.
+    private var recoveryRow: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Toggle("Recovery context", isOn: recoveryBinding)
+                .font(.system(size: 15))
+                .foregroundStyle(TallyColor.ink)
+                .tint(TallyColor.amberBright)
+                .accessibilityIdentifier(SettingsA11y.Health.recoveryToggle)
+
+            Text("Adds a modeled layer for fibrinolytic suppression — how much, and until when — computed on this device from your own log.")
+                .font(.system(size: 12))
+                .foregroundStyle(TallyColor.inkTertiary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(.vertical, 4)
+        .settingsRowBackground()
+    }
+
+    /// Turning it **off** is immediate. Turning it **on** goes through the
+    /// explainer the first time and only lands if the user confirms there — the
+    /// binding deliberately does not write on the way up (SPEC §4).
+    private var recoveryBinding: Binding<Bool> {
+        Binding(
+            get: { recoveryEnabled },
+            set: { newValue in
+                guard newValue else {
+                    RecoveryContext.setEnabled(false)
+                    return
+                }
+                if recoveryExplainerSeen {
+                    RecoveryContext.setEnabled(true)
+                } else {
+                    isShowingRecoveryExplainer = true
+                }
+            }
+        )
+    }
+
+    /// `@AppStorage` watches `.standard`, but the App Group holds the value the
+    /// widget reads. `RecoveryContext.setEnabled` writes both, so they only ever
+    /// diverge if `.standard` was cleared out from under us; re-mirroring the
+    /// App Group's answer on appear makes the row show the truth either way.
+    private func mirrorRecoveryPreference() {
+        let enabled = RecoveryContext.isEnabled()
+        guard enabled != recoveryEnabled else { return }
+        RecoveryContext.setEnabled(enabled)
     }
 
     private var healthWriteBinding: Binding<Bool> {

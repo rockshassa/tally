@@ -17,6 +17,11 @@ enum YouA11y {
     static let ratioGoalBar = "you.ratioGoalBar"
     static let badgeCase = "you.badgeCase"
     static let emptyState = "you.emptyState"
+
+    /// The dry-streak line's fibrinolytic reframe. Present only while SPEC §4's
+    /// recovery context is on — its absence is what "zero footprint when off"
+    /// looks like to a UI test.
+    static let recoveryCaption = "you.recoveryCaption"
     static let settingsButton = "settings.gearButton"  // SettingsUITests navigates by this
 
     /// One per badge tile: `you.badge.pacer`, `you.badge.drySpell30`, …

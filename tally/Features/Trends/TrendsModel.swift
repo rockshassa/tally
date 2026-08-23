@@ -72,6 +72,8 @@ public final class TrendsModel {
             scoring: scoring,
             calendar: calendar,
             windowDays: windowDays,
+            // SPEC §4: off means the layer is never computed, not merely hidden.
+            recoveryEnabled: RecoveryContext.isEnabled(),
             now: now
         )
         hasLoaded = true
@@ -90,6 +92,7 @@ public final class TrendsModel {
         scoring: ScoringEngine = ScoringEngine(),
         calendar: Calendar = .current,
         windowDays: Int = 90,
+        recoveryEnabled: Bool = false,
         now: Date = Date()
     ) -> TrendsData {
 
@@ -176,6 +179,9 @@ public final class TrendsModel {
                 windowDays: windowDays
             ),
             tiles: tiles,
+            suppression: recoveryEnabled
+                ? TrendsMath.suppression(events: events, now: now)
+                : nil,
             eventCount: events.count
         )
     }

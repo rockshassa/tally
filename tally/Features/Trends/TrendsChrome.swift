@@ -23,6 +23,10 @@ enum TrendsA11y {
 
     static let drinksChart = "trends.drinksChart"
     static let statTiles = "trends.statTiles"
+
+    /// SPEC §4's modeled-suppression tile. Present only while recovery context
+    /// is on — its absence is the "zero footprint when off" assertion.
+    static let suppressionTile = "trends.suppressionTile"
     static let ratioChart = "trends.ratioChart"
     static let venueChart = "trends.venueChart"
     static let heatmap = "trends.heatmap"

@@ -43,7 +43,7 @@ struct AboutSettingsView: View {
             Section {
                 paragraph(
                     "Not a medical device.",
-                    "Tally counts what you tell it to count. Insights describe correlations in your own numbers — never a diagnosis, a claim, or advice."
+                    "Tally counts what you tell it to count. Insights describe correlations in your own numbers — never a diagnosis, a claim, or advice. Recovery context, if you turn it on, is an educational model of published population averages, computed on this device from your own log: it measures nothing, scores no risk, and never speaks for your clinician."
                 )
 
                 if let url = Self.standardDrinkGuidelinesURL {

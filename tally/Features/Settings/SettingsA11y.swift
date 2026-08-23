@@ -86,6 +86,19 @@ enum SettingsA11y {
         static let writeToggle = "settings.health.writeToggle"
         static let thresholdStepper = "settings.health.thresholdStepper"
         static let primer = "settings.health.primer"
+
+        // MARK: Recovery context (SPEC §4)
+
+        /// The opt-in switch. Flipping it on presents the explainer first — the
+        /// toggle only moves once the explainer is confirmed.
+        static let recoveryToggle = "settings.health.recoveryToggle"
+
+        /// The one-time explainer sheet. Not a permission primer: nothing is
+        /// being asked of iOS, so it has a confirm and a cancel, not a grant and
+        /// a "Not now".
+        static let recoveryExplainer = "settings.health.recoveryExplainer"
+        static let recoveryConfirmButton = "settings.health.recoveryExplainer.confirmButton"
+        static let recoveryCancelButton = "settings.health.recoveryExplainer.cancelButton"
     }
 
     // MARK: iCloud sync (SPEC §8) — the `sync` stream's mount point
