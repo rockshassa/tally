@@ -46,6 +46,12 @@ public struct TrendsScreen<Insights: View>: View {
     @Environment(\.modelContext) private var modelContext
     @State private var model: TrendsModel?
 
+    /// SPEC §4's recovery context. The tile below is gated on this rather than on
+    /// `data.suppression` alone so flipping the toggle in Settings repaints the
+    /// grid immediately — `onChange` recomputes, and the `nil` case covers the
+    /// instant in between.
+    @AppStorage(RecoveryContext.enabledKey) private var recoveryEnabled = false
+
     public init(
         now: Date? = nil,
         model: TrendsModel? = nil,
@@ -86,6 +92,7 @@ public struct TrendsScreen<Insights: View>: View {
         .accessibilityIdentifier(TrendsA11y.screen)
         .task { prepare() }
         .onAppear { model?.reload(asOf: now) }
+        .onChange(of: recoveryEnabled) { _, _ in model?.reload(asOf: now) }
     }
 
     @ViewBuilder
@@ -104,7 +111,7 @@ public struct TrendsScreen<Insights: View>: View {
             TrendsEmptyState()
         } else {
             drinksSection(data: data)
-            tileGrid(data.tiles)
+            tileGrid(data.tiles, suppression: data.suppression)
             ratioSection(data: data)
             venueSection(data: data)
             heatmapSection(data: data)
@@ -127,7 +134,7 @@ public struct TrendsScreen<Insights: View>: View {
 
     /// SPEC §4: "this week vs last week, longest dry streak, current streak,
     /// most frequent venue" — plus the two headline numbers from the mockup.
-    private func tileGrid(_ tiles: TrendsTileSet) -> some View {
+    private func tileGrid(_ tiles: TrendsTileSet, suppression: TrendsSuppression?) -> some View {
         LazyVGrid(columns: [GridItem(.flexible(), spacing: 8), GridItem(.flexible(), spacing: 8)], spacing: 8) {
 
             TrendsStatTile(
@@ -177,6 +184,19 @@ public struct TrendsScreen<Insights: View>: View {
                 deltaTone: .neutral,
                 valueSize: 13
             )
+
+            // SPEC §4's recovery context: one more tile, and only when the layer
+            // is on. Everything above is untouched by it.
+            if recoveryEnabled, let suppression {
+                TrendsStatTile(
+                    key: "Modeled suppression",
+                    value: suppression.thisWeekHours.formatted(.number.precision(.fractionLength(0...1))),
+                    unit: "h",
+                    delta: suppressionDeltaText(suppression),
+                    deltaTone: suppressionTone(suppression)
+                )
+                .accessibilityIdentifier(TrendsA11y.suppressionTile)
+            }
         }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier(TrendsA11y.statTiles)
@@ -280,6 +300,27 @@ public struct TrendsScreen<Insights: View>: View {
         let magnitude = abs(delta).formatted(.number.precision(.fractionLength(0...1)))
         if abs(delta) < 0.05 { return "flat" }
         return "\(delta < 0 ? "▼" : "▲") \(magnitude)"
+    }
+
+    /// Hours above baseline, this week against last. Half an hour of dead band:
+    /// the model is a population curve sampled every fifteen minutes, and it
+    /// would be dishonest to render a ten-minute difference as movement.
+    private func suppressionDeltaText(_ suppression: TrendsSuppression) -> String {
+        let delta = suppression.deltaHours
+        guard abs(delta) >= 0.5 else { return "same as last week" }
+        let magnitude = abs(delta).formatted(.number.precision(.fractionLength(0...1)))
+        return "\(delta < 0 ? "▼" : "▲") \(magnitude) h vs last week"
+    }
+
+    /// Same convention as every other tile on this screen — aqua for down, amber
+    /// for up, neither of them a verdict. Down here means fewer modeled hours
+    /// above baseline; it is not a clot-risk score and it does not say "safe"
+    /// (SPEC §4 honesty rules).
+    private func suppressionTone(_ suppression: TrendsSuppression) -> TrendsStatTile.Tone {
+        let delta = suppression.deltaHours
+        if delta <= -0.5 { return .good }
+        if delta >= 0.5 { return .rising }
+        return .neutral
     }
 
     // MARK: Plumbing

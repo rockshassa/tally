@@ -50,6 +50,12 @@ public struct YouScreen: View {
     /// immediately — see `RatioGoalPreference` for the key contract.
     @AppStorage(RatioGoalPreference.storageKey) private var storedRatioGoal = RatioGoalPreference.defaultValue
 
+    /// SPEC §4's recovery context. Off — the default — is byte-identical to this
+    /// screen before the layer existed; on, the dry streak gains its *why*.
+    /// `@AppStorage` for the same reason the ratio goal uses it: Settings writes
+    /// the key, and this screen has to repaint when it does.
+    @AppStorage(RecoveryContext.enabledKey) private var recoveryEnabled = false
+
     private let deriver = SessionDeriver()
 
     // MARK: Body
@@ -60,6 +66,10 @@ public struct YouScreen: View {
         ScrollView {
             VStack(spacing: 12) {
                 hero(summary)
+
+                if recoveryEnabled, summary.currentDryStreak > 0 {
+                    recoveryCaption(summary)
+                }
 
                 if summary.hasDrinksThisWeek {
                     YouRatioGoalBar(
@@ -146,6 +156,30 @@ public struct YouScreen: View {
 
     private func weekPointsText(_ summary: YouSummary) -> String {
         summary.weekPoints > 0 ? "+\(summary.weekPoints) this week" : "0 this week"
+    }
+
+    // MARK: Recovery context (SPEC §4)
+
+    /// The dry-streak caption, reframed. SPEC §4: *"Reframed copy: dry-streak
+    /// captions … gain the fibrinolytic why."*
+    ///
+    /// It says "the model shows" because the honesty rules in the same section
+    /// leave no room for anything else — this is a population dose-response
+    /// rendered from the log, not a reading taken off the user. Nothing here is a
+    /// number the model produced; it is the one state the model is unambiguous
+    /// about, which is why a dry run is the only streak that gets a line.
+    private func recoveryCaption(_ summary: YouSummary) -> some View {
+        let days = summary.currentDryStreak == 1 ? "1 dry day" : "\(summary.currentDryStreak) dry days"
+        let caption = "\(days) — the model shows your fibrinolytic system unimpaired."
+
+        return Text(caption)
+            .font(.system(size: 12))
+            .foregroundStyle(TallyColor.inkSecondary)
+            .fixedSize(horizontal: false, vertical: true)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.leading, 4)
+            .accessibilityIdentifier(YouA11y.recoveryCaption)
+            .accessibilityLabel(caption)
     }
 
     /// The quiet line under the case. Bests belong here rather than in the hero:
