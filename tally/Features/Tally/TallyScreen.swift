@@ -46,6 +46,11 @@ struct TallyScreen: View {
                     LiveSessionCard(session: session, venueName: venueName(for: session.venueID))
                 }
 
+                // SPEC §4: the recovery card decides for itself whether it
+                // exists — off, or nothing to report, and it renders nothing at
+                // all rather than an empty slot.
+                SuppressionCurveCard(events: events.map(\.snapshot))
+
                 Spacer(minLength: 0)
 
                 buttons

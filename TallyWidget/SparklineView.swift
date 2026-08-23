@@ -84,7 +84,10 @@ struct SparklineView: View {
 
 // MARK: - Geometry
 
-private extension Path {
+/// Internal rather than file-private since SPEC §4's modeled suppression curve
+/// (`SuppressionMiniCurve`) plots on the same three primitives — one polyline
+/// helper for the whole extension, so the two mini-charts cannot drift apart.
+extension Path {
 
     static func sparklinePoints(
         values: [Double],

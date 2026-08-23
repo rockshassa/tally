@@ -74,6 +74,15 @@ struct TallyCounterWidgetView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
     }
 
+    /// The 7-day sparkline, and — with recovery context on (SPEC §4) — the
+    /// modeled suppression curve stacked beneath it.
+    ///
+    /// The suppression block lives *here*, in the medium family's right-hand
+    /// column, rather than anywhere near the counts: SPEC §6 makes today's two
+    /// numbers and the two log buttons the widget's job, and this is the one
+    /// region that is already given over to context. The small family gets
+    /// nothing at all — it is full of buttons, and shrinking a tap target to
+    /// make room for a secondary line is the wrong trade.
     private var sparklineColumn: some View {
         VStack(alignment: .leading, spacing: 3) {
             Spacer(minLength: 0)
@@ -84,7 +93,12 @@ struct TallyCounterWidgetView: View {
                 .foregroundStyle(TallyPalette.ink3)
             SparklineView(history: entry.history)
                 .frame(maxWidth: .infinity)
-                .frame(height: 48)
+                .frame(height: entry.suppression == nil ? 48 : 36)
+
+            if let suppression = entry.suppression {
+                SuppressionWidgetBlock(snapshot: suppression)
+                    .padding(.top, 2)
+            }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
     }
@@ -213,4 +227,10 @@ private struct UndoButton: View {
 } timeline: {
     TallyWidgetEntry.sample()
     TallyWidgetEntry.empty()
+}
+
+#Preview("Medium · recovery context", as: .systemMedium) {
+    TallyCounterWidget()
+} timeline: {
+    TallyWidgetEntry.recoverySample()
 }
