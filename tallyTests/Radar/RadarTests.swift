@@ -1269,6 +1269,196 @@ struct SessionTrueUpTests {
     }
 }
 
+// MARK: - Recovery context on the true-up
+
+/// SPEC §4 — *Session rebound classification*, the half that lands on the
+/// true-up.
+///
+/// > **Session rebound classification** on Session detail and the true-up: peak
+/// > drinking density per 90 min classifies the Session *paced / elevated /
+/// > compressed*, with one factual line about the modeled next-morning rebound.
+///
+/// Two things are under test and the second is the one that matters most: that
+/// the line says exactly what the model says when recovery context is on, and
+/// that the body is **byte-identical** to its pre-recovery self when it is off —
+/// SPEC §4's "zero footprint when off" is a promise about this exact string.
+///
+/// The flag is injected at every call rather than written to `UserDefaults`: the
+/// planner takes it as a parameter (defaulted to `RecoveryContext.isEnabled()`)
+/// precisely so a test never has to touch a global default, and so these cases
+/// cannot leak into the suites above.
+@Suite("Session true-up — recovery context (SPEC §4)")
+@MainActor
+struct SessionTrueUpRecoveryTests {
+
+    private let start = RadarFixture.at(hour: 20)
+
+    private func minutes(_ count: Double) -> Date { start.addingTimeInterval(count * 60) }
+
+    private func event(_ offsetMinutes: Double, type: DrinkType = .alcoholic) -> DrinkEventSnapshot {
+        DrinkEventSnapshot(type: type, timestamp: minutes(offsetMinutes))
+    }
+
+    private func session(_ events: [DrinkEventSnapshot]) -> DerivedSession {
+        SessionDeriver().derive(events: events).last!
+    }
+
+    /// SPEC §5's own example night, drunk fast enough to compress: four
+    /// alcoholic drinks and a water inside an hour.
+    private var compressedNight: DerivedSession {
+        session([event(0), event(20), event(30, type: .nonAlcoholic), event(40), event(60)])
+    }
+
+    // MARK: - Off (the default)
+
+    @Test("Recovery context off leaves the body exactly as it was")
+    func offIsByteIdentical() {
+        let closed = compressedNight
+        let prompt = SessionTrueUp.prompt(for: closed, placeName: "The Anchor", recoveryEnabled: false)
+
+        #expect(prompt?.reboundClass == nil)
+
+        let body = RadarNotificationBuilder.request(for: prompt!).content.body
+        #expect(body == "4 drinks, 1 water. Look right?")
+        // Byte-identical to the copy this app sent before the recovery layer
+        // existed — which is the same thing as the pre-recovery call still
+        // compiling and still answering the same string.
+        #expect(body == RadarCopy.TrueUp.body(alcoholic: 4, nonAlcoholic: 1))
+        #expect(!body.contains("\n"))
+    }
+
+    @Test("The title is untouched either way — recovery context adds a line, it does not rewrite one")
+    func titleIsUnchanged() {
+        let closed = compressedNight
+        let on = SessionTrueUp.prompt(for: closed, placeName: "The Anchor", recoveryEnabled: true)!
+        let off = SessionTrueUp.prompt(for: closed, placeName: "The Anchor", recoveryEnabled: false)!
+
+        #expect(RadarNotificationBuilder.request(for: on).content.title == "Session at The Anchor ended")
+        #expect(RadarNotificationBuilder.request(for: off).content.title == "Session at The Anchor ended")
+    }
+
+    // MARK: - On
+
+    @Test("Recovery context on adds the model's own line, under the counts")
+    func onAddsTheSecondLine() {
+        let closed = compressedNight
+        let prompt = SessionTrueUp.prompt(for: closed, placeName: "The Anchor", recoveryEnabled: true)
+
+        #expect(prompt?.reboundClass == .compressed)
+
+        let request = RadarNotificationBuilder.request(for: prompt!)
+        #expect(request.content.title == "Session at The Anchor ended")
+        #expect(
+            request.content.body == """
+            4 drinks, 1 water. Look right?
+            Compressed — this pattern models the strongest next-morning suppression.
+            """
+        )
+        // The words are the model's, not this module's: paraphrasing the line
+        // that says "modeled" is how a model becomes a claim (SPEC §4).
+        #expect(
+            request.content.body.split(separator: "\n").last.map(String.init)
+                == FibrinolysisModel.ReboundClass.compressed.summary
+        )
+    }
+
+    @Test(
+        "Density, not total, picks the line",
+        arguments: [
+            // One drink every 100 min: never two inside a 90-minute stretch.
+            ([0.0, 100.0, 200.0], FibrinolysisModel.ReboundClass.paced),
+            ([0.0, 30.0], .elevated),
+            ([0.0, 30.0, 60.0], .elevated),
+            ([0.0, 20.0, 40.0, 60.0], .compressed),
+            // Four drinks spread over a long night stay paced — the same total,
+            // a different modeled morning, which is the whole point of §4.
+            ([0.0, 100.0, 200.0, 300.0], .paced)
+        ]
+    )
+    func classificationPerDensity(offsets: [Double], expected: FibrinolysisModel.ReboundClass) {
+        let closed = session(offsets.map { event($0) })
+        let prompt = SessionTrueUp.prompt(for: closed, placeName: "The Anchor", recoveryEnabled: true)
+
+        #expect(prompt?.reboundClass == expected)
+        #expect(
+            RadarNotificationBuilder.request(for: prompt!).content.body.hasSuffix(expected.summary)
+        )
+    }
+
+    @Test("A night with nothing alcoholic in it gets no line, recovery context on or off")
+    func zeroAlcoholSaysNothing() {
+        let closed = session([event(0, type: .nonAlcoholic), event(30, type: .nonAlcoholic)])
+        let prompt = SessionTrueUp.prompt(for: closed, placeName: "The Anchor", recoveryEnabled: true)
+
+        // `FibrinolysisModel.classify` answers `.paced` for a night with no
+        // pulses in it; "modeled next-morning rebound low" about two glasses of
+        // water would be a sentence about nothing.
+        #expect(prompt?.reboundClass == nil)
+        #expect(RadarNotificationBuilder.request(for: prompt!).content.body == "2 waters. Look right?")
+    }
+
+    // MARK: - The rule both surfaces share
+
+    @Test("The Session detail row and the true-up ask the same question")
+    func detailRowSharesTheRule() {
+        let closed = compressedNight
+
+        #expect(closed.reboundClass(recoveryEnabled: true) == .compressed)
+        #expect(closed.reboundClass(recoveryEnabled: false) == nil)
+        #expect(
+            closed.reboundClass(recoveryEnabled: true)
+                == SessionTrueUp.prompt(for: closed, placeName: "", recoveryEnabled: true)?.reboundClass
+        )
+
+        // The row the UI suite reaches for (SPEC §4 asks for exactly this one).
+        #expect(HistoryA11y.reboundClass == "history.reboundClass")
+    }
+
+    @Test("The classifier is injectable, and the line it picks is density alone")
+    func classifierIsInjectable() {
+        // Every curve parameter moved at once. `classify` counts drinks in a
+        // fixed 90-minute window, so none of them can move the line — the curve
+        // card's tuning and the true-up's sentence are independent by design.
+        let tuned = FibrinolysisModel(
+            configuration: FibrinolysisModel.Configuration(
+                peakDelay: 90 * 60,
+                compressionWindow: 6 * 3600,
+                unitPulse: 40
+            )
+        )
+        let closed = session([event(0), event(30)])
+
+        #expect(closed.reboundClass(recoveryEnabled: true, model: tuned) == .elevated)
+        #expect(closed.reboundClass(recoveryEnabled: true) == .elevated)
+        #expect(
+            SessionTrueUp.prompt(
+                for: closed,
+                placeName: "",
+                recoveryEnabled: true,
+                model: tuned
+            )?.reboundClass == .elevated
+        )
+    }
+
+    // MARK: - The payload
+
+    @Test("The class is copy, not payload: \"+1 drink\" carries exactly what it carried before")
+    func payloadIsUnchanged() {
+        let closed = compressedNight
+        let on = SessionTrueUp.prompt(for: closed, placeName: "The Anchor", recoveryEnabled: true)!
+        let off = SessionTrueUp.prompt(for: closed, placeName: "The Anchor", recoveryEnabled: false)!
+
+        // Same `userInfo` either way — the retro-log needs the close moment and
+        // the counts, and nothing about a modeled morning changes where a
+        // correction lands.
+        #expect(RadarActionPayload(prompt: on).userInfo == RadarActionPayload(prompt: off).userInfo)
+        #expect(RadarActionPayload(userInfo: RadarActionPayload(prompt: on).userInfo)?.trueUp == on.trueUp)
+        // And the same request identifier, so recovery context can be flipped
+        // mid-Session without stacking a second banner for the same night.
+        #expect(on.requestIdentifier == off.requestIdentifier)
+    }
+}
+
 // MARK: - Tier 2 gating
 
 @Suite("Bar Radar — discovery gating (SPEC §2 Tier 2)")

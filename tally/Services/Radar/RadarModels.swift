@@ -391,6 +391,18 @@ nonisolated public struct RadarPrompt: Hashable, Sendable {
     /// The closed Session, for `kind == .trueUp`. `nil` for everything else.
     public let trueUp: RadarTrueUp?
 
+    /// SPEC §4's Session rebound classification, for a true-up raised while the
+    /// recovery layer is on. `nil` for every other prompt, for a Session with
+    /// nothing alcoholic in it, and — the case the honesty rules turn on — for
+    /// every Session at all when recovery context is off, which is what keeps
+    /// the body byte-identical to its pre-recovery self.
+    ///
+    /// It rides on the prompt rather than on `RadarTrueUp` because it is *copy*:
+    /// `SessionTrueUp` decides it from the closed `DerivedSession`, the builder
+    /// prints it, and nothing an action does needs it — which is why it is
+    /// absent from `RadarActionPayload` and from the notification's `userInfo`.
+    public let reboundClass: FibrinolysisModel.ReboundClass?
+
     public init(
         kind: Kind,
         visitID: UUID? = nil,
@@ -398,7 +410,8 @@ nonisolated public struct RadarPrompt: Hashable, Sendable {
         venueID: UUID? = nil,
         place: RadarPlace? = nil,
         offersMute: Bool = false,
-        trueUp: RadarTrueUp? = nil
+        trueUp: RadarTrueUp? = nil,
+        reboundClass: FibrinolysisModel.ReboundClass? = nil
     ) {
         self.kind = kind
         self.visitID = visitID
@@ -407,6 +420,7 @@ nonisolated public struct RadarPrompt: Hashable, Sendable {
         self.place = place
         self.offersMute = offersMute
         self.trueUp = trueUp
+        self.reboundClass = reboundClass
     }
 
     public var category: TallyNotificationCategory { kind.category }
