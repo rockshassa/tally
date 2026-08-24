@@ -229,10 +229,14 @@ enum SuppressionTime {
     }
 
     static func uses12HourClock(_ locale: Locale = .current) -> Bool {
-        // "j" is the skeleton for "whatever hour field this locale prefers";
-        // it resolves to an "h" family for 12-hour clocks and "H"/"k" for 24.
-        let template = DateFormatter.dateFormat(fromTemplate: "j", options: 0, locale: locale) ?? "h"
-        return template.contains("h") || template.contains("K")
+        // `hourCycle` answers directly. Do *not* pattern-match the "j" skeleton:
+        // French resolves to `HH 'h'` — 24-hour, with a quoted "h" literal for
+        // "13 h 45" — so any substring test for "h" reports the wrong clock.
+        switch locale.hourCycle {
+        case .oneToTwelve, .zeroToEleven: true
+        case .zeroToTwentyThree, .oneToTwentyFour: false
+        @unknown default: false
+        }
     }
 }
 
