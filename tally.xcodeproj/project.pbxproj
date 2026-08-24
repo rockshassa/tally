@@ -99,13 +99,6 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
-		B30000000000000000000003 /* Exceptions for "tally" folder in "tally" target */ = {
-			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
-			membershipExceptions = (
-				Info.plist,
-			);
-			target = 000000000000000100000000 /* tally */;
-		};
 		B30000000000000000000001 /* Exceptions for "TallyWidget" folder in "TallyWidget" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
@@ -119,6 +112,13 @@
 				Info.plist,
 			);
 			target = B20000000000000000000006 /* TallyWatchComplications */;
+		};
+		B30000000000000000000003 /* Exceptions for "tally" folder in "tally" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 000000000000000100000000 /* tally */;
 		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
@@ -679,6 +679,7 @@
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = tally/Info.plist;
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "Tally compares your activity against your own drinking history, entirely on this device, to show whether drinking is eating into it. Nothing is uploaded.";
 				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "Tally can save the drinks you log to Health as alcoholic beverages. This stays off until you turn it on.";
 				INFOPLIST_KEY_NSLocationAlwaysAndWhenInUseUsageDescription = "Bar Radar lets iOS tell Tally when you arrive at or leave a bar you have saved, so it can offer to start a session. Tally receives arrival and departure events only, never a continuous location stream.";
@@ -687,7 +688,6 @@
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphonesimulator*]" = YES;
-				INFOPLIST_FILE = tally/Info.plist;
 				"INFOPLIST_KEY_UILaunchScreen_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UILaunchScreen_Generation[sdk=iphonesimulator*]" = YES;
 				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphoneos*]" = UIStatusBarStyleDefault;
@@ -725,6 +725,7 @@
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = tally/Info.plist;
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "Tally compares your activity against your own drinking history, entirely on this device, to show whether drinking is eating into it. Nothing is uploaded.";
 				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "Tally can save the drinks you log to Health as alcoholic beverages. This stays off until you turn it on.";
 				INFOPLIST_KEY_NSLocationAlwaysAndWhenInUseUsageDescription = "Bar Radar lets iOS tell Tally when you arrive at or leave a bar you have saved, so it can offer to start a session. Tally receives arrival and departure events only, never a continuous location stream.";
@@ -733,7 +734,6 @@
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphonesimulator*]" = YES;
-				INFOPLIST_FILE = tally/Info.plist;
 				"INFOPLIST_KEY_UILaunchScreen_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UILaunchScreen_Generation[sdk=iphonesimulator*]" = YES;
 				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphoneos*]" = UIStatusBarStyleDefault;

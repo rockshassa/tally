@@ -12,9 +12,10 @@ import TallyKit
 // * **amber intensity only, never green** — no colour in this file can be read
 //   as permission, and a curve sitting at baseline drops to neutral ink rather
 //   than gaining a "you're fine" hue;
-// * the index is **never printed as a number** — the y-axis is hidden on
-//   purpose, because a figure on a scale is exactly the clot-risk score the
-//   SPEC forbids. Height and duration carry the magnitude.
+// * the y-axis shows the model's **own dimensionless index** (SPEC §4's 0–100
+//   scale) as quiet reference values — the model's unit is not a risk score.
+//   What stays forbidden: graded judgment words, thresholds framed as safe, and
+//   any color that reads as permission.
 
 // MARK: - Accessibility
 
@@ -369,9 +370,22 @@ struct SuppressionCurveCard: View {
         }
         .chartXScale(domain: window)
         .chartYScale(domain: 0...yMax)
-        // Hidden on purpose: see the file header — a number on an axis is the
-        // score SPEC §4 forbids.
-        .chartYAxis(.hidden)
+        // The y-axis shows the model's own dimensionless index (0–100, defined
+        // in SPEC §4) so the curve has reference values for calibration. That is
+        // the model's unit, not a risk score — the honesty line SPEC draws is at
+        // graded judgment words and safety colors, not at the index itself.
+        .chartYAxis {
+            AxisMarks(position: .trailing, values: .automatic(desiredCount: 3)) { value in
+                AxisGridLine().foregroundStyle(TallyColor.line)
+                AxisValueLabel {
+                    if let index = value.as(Double.self) {
+                        Text("\(Int(index))")
+                            .font(.system(size: 8.5).monospacedDigit())
+                            .foregroundStyle(TallyColor.inkTertiary)
+                    }
+                }
+            }
+        }
         .chartXAxis {
             AxisMarks(values: .stride(by: .hour, count: 6)) { value in
                 AxisGridLine().foregroundStyle(TallyColor.line)
