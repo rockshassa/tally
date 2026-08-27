@@ -259,31 +259,7 @@ public enum RadarNotificationBuilder {
     public static func request(for prompt: RadarPrompt, fireDate: Date? = nil, now: Date = Date()) -> UNNotificationRequest {
 
         let content = UNMutableNotificationContent()
-
-        switch prompt.kind {
-        case .arrival:
-            content.title = RadarCopy.Arrival.title(prompt.placeName)
-            content.body = RadarCopy.Arrival.body
-        case .dwell:
-            content.title = RadarCopy.Dwell.title(prompt.placeName)
-            content.body = RadarCopy.Dwell.body
-        case .discovery:
-            content.title = RadarCopy.Discovery.title(prompt.placeName)
-            content.body = RadarCopy.Discovery.body
-        case .sessionReminder:
-            content.title = RadarCopy.SessionReminder.title(prompt.placeName)
-            content.body = RadarCopy.SessionReminder.body
-        case .trueUp:
-            content.title = RadarCopy.TrueUp.title(prompt.placeName)
-            content.body = RadarCopy.TrueUp.body(
-                alcoholic: prompt.trueUp?.alcoholicCount ?? 0,
-                nonAlcoholic: prompt.trueUp?.nonAlcoholicCount ?? 0,
-                // SPEC §4's second line, or nothing at all: the prompt carries a
-                // class only when recovery context was on where it was planned.
-                rebound: prompt.reboundClass
-            )
-        }
-
+        content.apply(text(for: prompt))
         content.sound = .default
         content.categoryIdentifier = prompt.notificationCategoryIdentifier
         // One thread per venue keeps a night's prompts collapsed together rather
@@ -304,5 +280,33 @@ public enum RadarNotificationBuilder {
             content: content,
             trigger: trigger
         )
+    }
+
+    /// What each prompt says, in the three fields SPEC §2's clamp rule splits it
+    /// into.
+    ///
+    /// Separate from `request(for:fireDate:now:)` so the copy for a prompt can be
+    /// read — by a test, or by the notification history SPEC §5 asks for —
+    /// without building a `UNNotificationRequest` to look inside.
+    public static func text(for prompt: RadarPrompt) -> NotificationText {
+        switch prompt.kind {
+        case .arrival:
+            RadarCopy.Arrival.text(prompt.placeName)
+        case .dwell:
+            RadarCopy.Dwell.text(prompt.placeName)
+        case .discovery:
+            RadarCopy.Discovery.text(prompt.placeName)
+        case .sessionReminder:
+            RadarCopy.SessionReminder.text(prompt.placeName)
+        case .trueUp:
+            RadarCopy.TrueUp.text(
+                placeName: prompt.placeName,
+                alcoholic: prompt.trueUp?.alcoholicCount ?? 0,
+                nonAlcoholic: prompt.trueUp?.nonAlcoholicCount ?? 0,
+                // SPEC §4's subtitle, or nothing at all: the prompt carries a
+                // class only when recovery context was on where it was planned.
+                rebound: prompt.reboundClass
+            )
+        }
     }
 }
