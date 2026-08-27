@@ -8,20 +8,44 @@ import TallyKit
 /// Radar has one extra obligation — it speaks *before* anything is logged, so it
 /// must never assume the user is drinking. "Start a Session?" is an offer;
 /// "Another one?" would not be.
+///
+/// **The banner's clamp** (SPEC §2) decides the shape of everything below: the
+/// venue goes in the title, the question in the body, and the one secondary line
+/// this family has — SPEC §4's rebound class on the true-up — in the subtitle.
+/// Every title is built through `NotificationText.venueTitle(prefix:venue:suffix:)`,
+/// so a long bar name is middle-truncated rather than cut off by iOS at whatever
+/// character the line happened to run out on.
 enum RadarCopy {
 
     // MARK: - Notifications (SPEC §5)
 
     enum Arrival {
         /// SPEC §5's example: "Looks like you're at The Anchor — start a Session?"
-        static func title(_ place: String) -> String { "Looks like you're at \(place)" }
+        ///
+        /// The prefix is 21 of the title's ~40 characters, and it is charged to
+        /// the same budget as the name: the clamp cannot tell a constant from a
+        /// venue.
+        static let prefix = "Looks like you're at "
+        static func title(_ place: String) -> String {
+            NotificationText.venueTitle(prefix: prefix, venue: place)
+        }
         static let body = "Start a Session?"
+
+        static func text(_ place: String) -> NotificationText {
+            NotificationText(title: title(place), body: body)
+        }
     }
 
     enum Dwell {
         /// SPEC §5's example: "Still at The Anchor — start a Session?"
-        static func title(_ place: String) -> String { "Still at \(place)" }
+        static func title(_ place: String) -> String {
+            NotificationText.venueTitle(prefix: "Still at ", venue: place)
+        }
         static let body = "Nothing logged yet — start a Session?"
+
+        static func text(_ place: String) -> NotificationText {
+            NotificationText(title: title(place), body: body)
+        }
     }
 
     /// SPEC §2's mid-Session reminder. The one Bar Radar prompt that speaks
@@ -30,14 +54,26 @@ enum RadarCopy {
     /// not to start it.
     enum SessionReminder {
         /// SPEC §5's example: "Still at The Anchor — anything to add?"
-        static func title(_ place: String) -> String { "Still at \(place)" }
+        static func title(_ place: String) -> String {
+            NotificationText.venueTitle(prefix: "Still at ", venue: place)
+        }
         static let body = "Anything to add?"
+
+        static func text(_ place: String) -> NotificationText {
+            NotificationText(title: title(place), body: body)
+        }
     }
 
     enum Discovery {
         /// SPEC §5's example: "Looks like you're at The Salty Dog — start a Session?"
-        static func title(_ place: String) -> String { "Looks like you're at \(place)" }
+        static func title(_ place: String) -> String {
+            NotificationText.venueTitle(prefix: Arrival.prefix, venue: place)
+        }
         static let body = "Start a Session?"
+
+        static func text(_ place: String) -> NotificationText {
+            NotificationText(title: title(place), body: body)
+        }
     }
 
     /// SPEC §2's Session true-up, and the only prompt in this file that speaks
@@ -53,30 +89,27 @@ enum RadarCopy {
         ///
         /// An untagged Session (home, or anywhere the check-in was skipped) has
         /// no venue to name, and inventing one would be worse than saying less.
+        ///
+        /// Both fixed halves are charged to the title budget — a name squeezed
+        /// between "Session at " and " ended" has 23 of the ~40 characters.
         static func title(_ place: String) -> String {
-            place.isEmpty ? "Session ended" : "Session at \(place) ended"
+            place.isEmpty
+                ? "Session ended"
+                : NotificationText.venueTitle(prefix: "Session at ", venue: place, suffix: " ended")
         }
 
-        /// "4 drinks, 1 water. Look right?", and — with SPEC §4's recovery
-        /// context on — a second line: "Compressed — this pattern models the
-        /// strongest next-morning suppression."
+        /// "4 drinks, 1 water. Look right?"
         ///
         /// A zero is omitted rather than printed: "0 waters" reads as a comment on
         /// the user, which SPEC §5 rules out.
         ///
-        /// - Parameter rebound: the Session's modeled rebound class, already
-        ///   decided by `SessionTrueUp` from the closed `DerivedSession`. This
-        ///   type never works out whether the line belongs — it only places it,
-        ///   in the model's own words, because `ReboundClass.summary` is the
-        ///   sentence that says "modeled" and paraphrasing it here would turn a
-        ///   model into a claim. `nil` — recovery context off, which is the
-        ///   default — returns the body byte-identical to the version that
-        ///   predates the recovery layer (SPEC §4: "zero footprint when off").
-        static func body(
-            alcoholic: Int,
-            nonAlcoholic: Int,
-            rebound: FibrinolysisModel.ReboundClass? = nil
-        ) -> String {
+        /// **No second line, ever.** SPEC §4's rebound class used to be appended
+        /// here with a newline, which is precisely the shape SPEC §2 rules out —
+        /// a body's second line is the first thing a collapsed banner cuts, and
+        /// the counts are the part the user is being asked to check. The class
+        /// now rides in `subtitle(rebound:)`; this function has no parameter for
+        /// it, so it cannot come back.
+        static func body(alcoholic: Int, nonAlcoholic: Int) -> String {
             var clauses: [String] = []
             if alcoholic > 0 {
                 clauses.append("\(alcoholic) \(alcoholic == 1 ? "drink" : "drinks")")
@@ -84,9 +117,36 @@ enum RadarCopy {
             if nonAlcoholic > 0 {
                 clauses.append("\(nonAlcoholic) \(nonAlcoholic == 1 ? "water" : "waters")")
             }
-            let counts = clauses.isEmpty ? "Look right?" : clauses.joined(separator: ", ") + ". Look right?"
-            guard let rebound else { return counts }
-            return counts + "\n" + rebound.summary
+            guard !clauses.isEmpty else { return "Look right?" }
+            return clauses.joined(separator: ", ") + ". Look right?"
+        }
+
+        /// SPEC §4's line about the modeled next-morning rebound, or `""`.
+        ///
+        /// - Parameter rebound: the Session's modeled rebound class, already
+        ///   decided by `SessionTrueUp` from the closed `DerivedSession`. This
+        ///   type never works out whether the line belongs — it only places it,
+        ///   in the model's own words, because `ReboundClass.summary` is the
+        ///   sentence that says "modeled" and paraphrasing it here would turn a
+        ///   model into a claim. `nil` — recovery context off, which is the
+        ///   default — leaves the subtitle empty, so iOS draws no row and the
+        ///   notification is the one this app sent before the recovery layer
+        ///   existed (SPEC §4: "zero footprint when off").
+        static func subtitle(rebound: FibrinolysisModel.ReboundClass?) -> String {
+            rebound?.summary ?? ""
+        }
+
+        static func text(
+            placeName: String,
+            alcoholic: Int,
+            nonAlcoholic: Int,
+            rebound: FibrinolysisModel.ReboundClass? = nil
+        ) -> NotificationText {
+            NotificationText(
+                title: title(placeName),
+                subtitle: subtitle(rebound: rebound),
+                body: body(alcoholic: alcoholic, nonAlcoholic: nonAlcoholic)
+            )
         }
     }
 

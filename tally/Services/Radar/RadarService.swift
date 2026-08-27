@@ -32,6 +32,9 @@ import UserNotifications
 /// ```swift
 /// NotificationService.shared.activate(additionalCategories: RadarService.notificationCategories)
 /// NotificationService.shared.actionHandler = { RadarService.handleAction($0) }
+/// // SPEC §2: tapping a Bar Radar prompt opens the check-in picker, not the
+/// // bare counter. See `checkInPickerRequestHandler`.
+/// RadarService.checkInPickerRequestHandler = { PlaceCoordinator.presentPickerForCurrentFix() }
 /// // and, on the root view:
 /// .barRadarCoordination(permissions: permissions)
 /// ```
@@ -59,6 +62,53 @@ public final class RadarService {
     /// Radar action is ignored, so it is safe to forward everything.
     public static func handleAction(_ action: NotificationAction) {
         shared.handleAction(action)
+    }
+
+    // MARK: - Check-in picker (SPEC §2)
+
+    /// **Called when the user taps the body of a Bar Radar prompt.**
+    ///
+    /// SPEC §2, on the arrival notification:
+    ///
+    /// > **Tapping the notification body** opens the app on the **check-in
+    /// > picker** rather than the bare counter — the inferred venue can be wrong,
+    /// > and the tap is the user saying "let me look."
+    ///
+    /// Fired for the four prompts that are about *where you are* — arrival,
+    /// dwell, discovery, and the mid-Session reminder. Not for the Session
+    /// true-up: SPEC §2 sends that one's tap-through to "the Session's editable
+    /// timeline in History", which is a different screen about a night that is
+    /// already over.
+    ///
+    /// **Why a closure and not a call.** The picker lives in `Features/Place`
+    /// and this file is `Services/Radar`; a direct reference would make the
+    /// notification layer depend on a view layer, and iOS has already opened the
+    /// app by the time this runs, so nothing here needs to know what presenting
+    /// looks like. `nil` — the default — means the tap does exactly what it did
+    /// before: it opens the app.
+    ///
+    /// **The integrator's one line**, wherever `activate(additionalCategories:)`
+    /// and `actionHandler` are already wired:
+    ///
+    /// ```swift
+    /// RadarService.checkInPickerRequestHandler = {
+    ///     PlaceCoordinator.presentPickerForCurrentFix()
+    /// }
+    /// ```
+    ///
+    /// Called on the main actor, synchronously, from inside
+    /// `handleAction(_:at:)` — which is itself reached from
+    /// `NotificationService`'s delegate callback. Presenting straight from it is
+    /// safe and is the point: the sheet should be on screen as the app finishes
+    /// coming up, not a frame later.
+    public var checkInPickerRequestHandler: (() -> Void)?
+
+    /// The same hook on the shared instance, so the integrator's line matches the
+    /// two beside it (`RadarService.notificationCategories`,
+    /// `RadarService.handleAction`).
+    public static var checkInPickerRequestHandler: (() -> Void)? {
+        get { shared.checkInPickerRequestHandler }
+        set { shared.checkInPickerRequestHandler = newValue }
     }
 
     // MARK: - Observable state
@@ -624,9 +674,33 @@ public final class RadarService {
             // anything — but it does mean the follow-up has been seen. The
             // mid-Session reminder and the true-up need no equivalent: their fire
             // dates are their own receipts, and both budgets are settled from that.
+            //
+            // Deliberately not gated on the identifier being the default action:
+            // an identifier this switch does not recognise is one of ours that
+            // nothing handles yet, and it reached the user the same way.
             if payload.kind == .dwell, let visitID = payload.visitID {
                 Task { await run(.dwellDelivered(visitID: visitID, at: date)) }
             }
+
+            // …and *then* the tap-through, after the bookkeeping above, so the
+            // visit is settled before anything is presented over it.
+            guard action.actionIdentifier == UNNotificationDefaultActionIdentifier else { return }
+            requestCheckInPicker(for: payload)
+        }
+    }
+
+    /// SPEC §2: the tap on a Bar Radar prompt "opens the app on the **check-in
+    /// picker** … rather than the bare counter".
+    ///
+    /// The true-up is the one prompt excluded — its tap-through belongs to the
+    /// Session's timeline in History, and offering to check in somewhere would be
+    /// answering a question about a night that has already ended.
+    private func requestCheckInPicker(for payload: RadarActionPayload) {
+        switch payload.kind {
+        case .arrival, .dwell, .discovery, .sessionReminder:
+            checkInPickerRequestHandler?()
+        case .trueUp:
+            break
         }
     }
 

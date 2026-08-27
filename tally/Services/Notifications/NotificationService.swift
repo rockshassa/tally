@@ -260,8 +260,7 @@ public final class NotificationService: NSObject {
 
         let content = makeContent(
             category: category,
-            title: NotificationCopy.Digest.title,
-            body: NotificationCopy.Digest.body(facts),
+            text: NotificationCopy.Digest.text(facts),
             // A weekly summary is not urgent enough to make a noise.
             sound: nil
         )
@@ -308,8 +307,7 @@ public final class NotificationService: NSObject {
 
         let content = makeContent(
             category: category,
-            title: NotificationCopy.Trend.title,
-            body: NotificationCopy.Trend.body(finding)
+            text: NotificationCopy.Trend.text(finding)
         )
 
         await schedule(
@@ -367,8 +365,7 @@ public final class NotificationService: NSObject {
 
         let content = makeContent(
             category: category,
-            title: NotificationCopy.Streak.title(risk),
-            body: NotificationCopy.Streak.body(risk)
+            text: NotificationCopy.Streak.text(risk)
         )
 
         await schedule(identifier: identifier, content: content, at: delivery)
@@ -456,8 +453,7 @@ public final class NotificationService: NSObject {
 
         let content = makeContent(
             category: category,
-            title: NotificationCopy.Pacing.title,
-            body: NotificationCopy.Pacing.body(finding)
+            text: NotificationCopy.Pacing.text(finding)
         )
 
         await schedule(identifier: identifier, content: content, at: delivery)
@@ -551,15 +547,17 @@ public final class NotificationService: NSObject {
         "\(category.identifier).\(suffix)"
     }
 
+    /// - Parameter text: title, subtitle, and body as the category's copy split
+    ///   them. Every category goes through `NotificationText` rather than two
+    ///   loose strings, which is what keeps a second sentence out of the body —
+    ///   SPEC §2's clamp rule, applied to SPEC §5's categories too.
     private func makeContent(
         category: TallyNotificationCategory,
-        title: String,
-        body: String,
+        text: NotificationText,
         sound: UNNotificationSound? = .default
     ) -> UNMutableNotificationContent {
         let content = UNMutableNotificationContent()
-        content.title = title
-        content.body = body
+        content.apply(text)
         content.sound = sound
         content.categoryIdentifier = category.identifier
         // Groups a category's notifications together in Notification Centre.

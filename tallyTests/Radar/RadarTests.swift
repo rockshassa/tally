@@ -1279,9 +1279,11 @@ struct SessionTrueUpTests {
 /// > compressed*, with one factual line about the modeled next-morning rebound.
 ///
 /// Two things are under test and the second is the one that matters most: that
-/// the line says exactly what the model says when recovery context is on, and
-/// that the body is **byte-identical** to its pre-recovery self when it is off —
-/// SPEC §4's "zero footprint when off" is a promise about this exact string.
+/// the line says exactly what the model says when recovery context is on — in the
+/// **subtitle**, per SPEC §2's clamp rule, never appended to the body — and that
+/// the body is **byte-identical** to its pre-recovery self when it is off, with
+/// no subtitle row at all. SPEC §4's "zero footprint when off" is a promise about
+/// this exact notification.
 ///
 /// The flag is injected at every call rather than written to `UserDefaults`: the
 /// planner takes it as a parameter (defaulted to `RecoveryContext.isEnabled()`)
@@ -1318,13 +1320,17 @@ struct SessionTrueUpRecoveryTests {
 
         #expect(prompt?.reboundClass == nil)
 
-        let body = RadarNotificationBuilder.request(for: prompt!).content.body
+        let content = RadarNotificationBuilder.request(for: prompt!).content
+        let body = content.body
         #expect(body == "4 drinks, 1 water. Look right?")
         // Byte-identical to the copy this app sent before the recovery layer
         // existed — which is the same thing as the pre-recovery call still
         // compiling and still answering the same string.
         #expect(body == RadarCopy.TrueUp.body(alcoholic: 4, nonAlcoholic: 1))
         #expect(!body.contains("\n"))
+        // And no subtitle row at all: SPEC §4's "zero footprint when off" is a
+        // promise about the whole notification, not only about the body.
+        #expect(content.subtitle == "")
     }
 
     @Test("The title is untouched either way — recovery context adds a line, it does not rewrite one")
@@ -1339,8 +1345,8 @@ struct SessionTrueUpRecoveryTests {
 
     // MARK: - On
 
-    @Test("Recovery context on adds the model's own line, under the counts")
-    func onAddsTheSecondLine() {
+    @Test("Recovery context on adds the model's own line, in the subtitle")
+    func onAddsTheModelsLine() {
         let closed = compressedNight
         let prompt = SessionTrueUp.prompt(for: closed, placeName: "The Anchor", recoveryEnabled: true)
 
@@ -1348,17 +1354,15 @@ struct SessionTrueUpRecoveryTests {
 
         let request = RadarNotificationBuilder.request(for: prompt!)
         #expect(request.content.title == "Session at The Anchor ended")
-        #expect(
-            request.content.body == """
-            4 drinks, 1 water. Look right?
-            Compressed — this pattern models the strongest next-morning suppression.
-            """
-        )
+        // SPEC §2: the secondary line goes in the subtitle, "never appended to
+        // the body, where it is the first thing truncated". The counts are what
+        // the user is being asked to check, so they keep the body.
+        #expect(request.content.body == "4 drinks, 1 water. Look right?")
+        #expect(!request.content.body.contains("\n"))
         // The words are the model's, not this module's: paraphrasing the line
         // that says "modeled" is how a model becomes a claim (SPEC §4).
         #expect(
-            request.content.body.split(separator: "\n").last.map(String.init)
-                == FibrinolysisModel.ReboundClass.compressed.summary
+            request.content.subtitle == FibrinolysisModel.ReboundClass.compressed.summary
         )
     }
 
@@ -1380,9 +1384,7 @@ struct SessionTrueUpRecoveryTests {
         let prompt = SessionTrueUp.prompt(for: closed, placeName: "The Anchor", recoveryEnabled: true)
 
         #expect(prompt?.reboundClass == expected)
-        #expect(
-            RadarNotificationBuilder.request(for: prompt!).content.body.hasSuffix(expected.summary)
-        )
+        #expect(RadarNotificationBuilder.request(for: prompt!).content.subtitle == expected.summary)
     }
 
     @Test("A night with nothing alcoholic in it gets no line, recovery context on or off")
@@ -1394,7 +1396,10 @@ struct SessionTrueUpRecoveryTests {
         // pulses in it; "modeled next-morning rebound low" about two glasses of
         // water would be a sentence about nothing.
         #expect(prompt?.reboundClass == nil)
-        #expect(RadarNotificationBuilder.request(for: prompt!).content.body == "2 waters. Look right?")
+
+        let content = RadarNotificationBuilder.request(for: prompt!).content
+        #expect(content.body == "2 waters. Look right?")
+        #expect(content.subtitle == "")
     }
 
     // MARK: - The rule both surfaces share
