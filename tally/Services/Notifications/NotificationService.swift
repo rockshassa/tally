@@ -106,17 +106,23 @@ public final class NotificationService: NSObject {
     private let settings: TallySettings
     private let calendar: Calendar
 
+    /// SPEC §5's notification history. Every decision below — scheduled, held,
+    /// or refused — leaves a line in it.
+    private let history: NotificationHistory
+
     /// Defaults are resolved in the body rather than in the parameter list: a
     /// default argument is evaluated in the *caller's* isolation, and both
     /// singletons are main-actor bound.
     init(
         center: (any UserNotificationScheduling)? = nil,
         settings: TallySettings? = nil,
-        calendar: Calendar = .current
+        calendar: Calendar = .current,
+        history: NotificationHistory? = nil
     ) {
         self.center = center ?? UNUserNotificationCenter.current()
         self.settings = settings ?? .shared
         self.calendar = calendar
+        self.history = history ?? .shared
         super.init()
     }
 
@@ -232,10 +238,10 @@ public final class NotificationService: NSObject {
         let category = TallyNotificationCategory.weeklyDigest
         let identifier = requestIdentifier(category, suffix: "next")
 
-        guard canSchedule(category, status: status) else {
-            center.cancel(identifiers: [identifier])
-            return
-        }
+        // The gate is *computed* here and *applied* below, once there is a
+        // digest to gate: SPEC §5's history records notifications that were
+        // deliberately not sent, and a week with no news was never one.
+        let suppression = suppressionReason(category, status: status)
 
         guard let fireDate = nextDigestDate(after: now) else { return }
 
@@ -253,20 +259,37 @@ public final class NotificationService: NSObject {
             return
         }
 
+        let title = NotificationCopy.Digest.title
+        let body = NotificationCopy.Digest.body(facts)
+
+        if let suppression {
+            center.cancel(identifiers: [identifier])
+            record(suppression, category: category, identifier: identifier, title: title, body: body, now: now)
+            return
+        }
+
         guard let delivery = deliveryDate(for: fireDate, category: category) else {
             center.cancel(identifiers: [identifier])
+            record(.quietHours(until: nil), category: category, identifier: identifier, title: title, body: body, now: now)
             return
         }
 
         let content = makeContent(
             category: category,
-            title: NotificationCopy.Digest.title,
-            body: NotificationCopy.Digest.body(facts),
+            title: title,
+            body: body,
             // A weekly summary is not urgent enough to make a noise.
             sound: nil
         )
 
-        await schedule(identifier: identifier, content: content, at: delivery)
+        await schedule(
+            identifier: identifier,
+            content: content,
+            at: delivery,
+            category: category,
+            proposedFor: fireDate,
+            now: now
+        )
     }
 
     /// The next Sunday at 19:00 local, strictly after `date`.
@@ -288,34 +311,57 @@ public final class NotificationService: NSObject {
     ) async {
 
         let category = TallyNotificationCategory.trendAlert
-        guard canSchedule(category, status: status) else { return }
+        let suppression = suppressionReason(category, status: status)
+
+        // The finding comes first now: it is a pure function over the snapshots,
+        // and every gate below is only worth a history line once there is a
+        // finding for it to hold back.
+        guard let finding = NotificationTriggers.trendFinding(events: events, asOf: now, calendar: calendar) else {
+            return
+        }
+
+        let identifier = requestIdentifier(category, suffix: finding.signature)
+        let title = NotificationCopy.Trend.title
+        let body = NotificationCopy.Trend.body(finding)
+
+        if let suppression {
+            record(suppression, category: category, identifier: identifier, title: title, body: body, now: now)
+            return
+        }
 
         // ≤ 1 per week, and never the same finding twice.
         if let last = TallyDefaults.date(forKey: TallyDefaults.Keys.lastTrendAlertAt),
            now.timeIntervalSince(last) < Self.trendCooldown {
-            return
-        }
-
-        guard let finding = NotificationTriggers.trendFinding(events: events, asOf: now, calendar: calendar) else {
+            record(.cooldown, category: category, identifier: identifier, title: title, body: body, now: now)
             return
         }
         guard TallyDefaults.string(forKey: TallyDefaults.Keys.lastTrendAlertSignature) != finding.signature else {
+            record(
+                .other(note: "Already sent for this trend"),
+                category: category,
+                identifier: identifier,
+                title: title,
+                body: body,
+                now: now
+            )
             return
         }
 
         let proposed = now.addingTimeInterval(Self.immediateDelay)
-        guard let delivery = deliveryDate(for: proposed, category: category) else { return }
+        guard let delivery = deliveryDate(for: proposed, category: category) else {
+            record(.quietHours(until: nil), category: category, identifier: identifier, title: title, body: body, now: now)
+            return
+        }
 
-        let content = makeContent(
-            category: category,
-            title: NotificationCopy.Trend.title,
-            body: NotificationCopy.Trend.body(finding)
-        )
+        let content = makeContent(category: category, title: title, body: body)
 
         await schedule(
-            identifier: requestIdentifier(category, suffix: finding.signature),
+            identifier: identifier,
             content: content,
-            at: delivery
+            at: delivery,
+            category: category,
+            proposedFor: proposed,
+            now: now
         )
 
         TallyDefaults.set(now, forKey: TallyDefaults.Keys.lastTrendAlertAt)
@@ -334,10 +380,7 @@ public final class NotificationService: NSObject {
         let category = TallyNotificationCategory.streakProtection
         let identifier = requestIdentifier(category, suffix: dayKey(now))
 
-        guard canSchedule(category, status: status) else {
-            center.cancel(identifiers: [identifier])
-            return
-        }
+        let suppression = suppressionReason(category, status: status)
 
         let risk = NotificationTriggers.streakRisk(
             events: events,
@@ -352,9 +395,21 @@ public final class NotificationService: NSObject {
             return
         }
 
+        let title = NotificationCopy.Streak.title(risk)
+        let body = NotificationCopy.Streak.body(risk)
+
+        if let suppression {
+            center.cancel(identifiers: [identifier])
+            record(suppression, category: category, identifier: identifier, title: title, body: body, now: now)
+            return
+        }
+
         // SPEC §5 says "one nudge"; the day marker is what enforces that even
         // after the notification has fired and left the pending queue.
-        guard TallyDefaults.string(forKey: TallyDefaults.Keys.lastStreakNudgeDay) != dayKey(now) else { return }
+        guard TallyDefaults.string(forKey: TallyDefaults.Keys.lastStreakNudgeDay) != dayKey(now) else {
+            record(.cooldown, category: category, identifier: identifier, title: title, body: body, now: now)
+            return
+        }
 
         var components = calendar.dateComponents([.year, .month, .day], from: now)
         components.hour = Self.streakHour
@@ -363,15 +418,21 @@ public final class NotificationService: NSObject {
 
         // Opened the app after the evening slot: say it now rather than tomorrow.
         let proposed = evening > now ? evening : now.addingTimeInterval(Self.immediateDelay)
-        guard let delivery = deliveryDate(for: proposed, category: category) else { return }
+        guard let delivery = deliveryDate(for: proposed, category: category) else {
+            record(.quietHours(until: nil), category: category, identifier: identifier, title: title, body: body, now: now)
+            return
+        }
 
-        let content = makeContent(
+        let content = makeContent(category: category, title: title, body: body)
+
+        await schedule(
+            identifier: identifier,
+            content: content,
+            at: delivery,
             category: category,
-            title: NotificationCopy.Streak.title(risk),
-            body: NotificationCopy.Streak.body(risk)
+            proposedFor: proposed,
+            now: now
         )
-
-        await schedule(identifier: identifier, content: content, at: delivery)
         TallyDefaults.set(dayKey(now), forKey: TallyDefaults.Keys.lastStreakNudgeDay)
     }
 
@@ -414,7 +475,7 @@ public final class NotificationService: NSObject {
         guard abs(now.timeIntervalSince(date)) < 5 * 60 else { return }
 
         let status = await authorization()
-        guard canSchedule(category, status: status) else { return }
+        let suppression = suppressionReason(category, status: status)
 
         guard
             let events = try? EventStore.snapshots(in: context),
@@ -441,26 +502,44 @@ public final class NotificationService: NSObject {
             return
         }
 
+        let title = NotificationCopy.Pacing.title
+        let body = NotificationCopy.Pacing.body(finding)
+
+        if let suppression {
+            record(suppression, category: category, identifier: identifier, title: title, body: body, now: now)
+            return
+        }
+
         // One per Session (SPEC §9: no nagging), plus a cooldown so a long night
         // that opens a second Session cannot chain nudges either.
         if TallyDefaults.string(forKey: TallyDefaults.Keys.lastPacingNudgeSessionID) == session.id.uuidString {
+            record(.onePerVisit, category: category, identifier: identifier, title: title, body: body, now: now)
             return
         }
         if let last = TallyDefaults.date(forKey: TallyDefaults.Keys.lastPacingNudgeAt),
            now.timeIntervalSince(last) < Self.pacingCooldown {
+            record(.cooldown, category: category, identifier: identifier, title: title, body: body, now: now)
             return
         }
 
         let proposed = now.addingTimeInterval(Self.immediateDelay)
-        guard let delivery = deliveryDate(for: proposed, category: category) else { return }
+        guard let delivery = deliveryDate(for: proposed, category: category) else {
+            // SPEC §5: the pacing nudge is `.drop` inside quiet hours — "a spacer
+            // suggestion at 08:00 the next morning is worse than silence".
+            record(.quietHours(until: nil), category: category, identifier: identifier, title: title, body: body, now: now)
+            return
+        }
 
-        let content = makeContent(
+        let content = makeContent(category: category, title: title, body: body)
+
+        await schedule(
+            identifier: identifier,
+            content: content,
+            at: delivery,
             category: category,
-            title: NotificationCopy.Pacing.title,
-            body: NotificationCopy.Pacing.body(finding)
+            proposedFor: proposed,
+            now: now
         )
-
-        await schedule(identifier: identifier, content: content, at: delivery)
 
         TallyDefaults.set(session.id.uuidString, forKey: TallyDefaults.Keys.lastPacingNudgeSessionID)
         TallyDefaults.set(now, forKey: TallyDefaults.Keys.lastPacingNudgeAt)
@@ -520,13 +599,26 @@ public final class NotificationService: NSObject {
 
     // MARK: - Gating
 
-    /// SPEC §9: "loud categories always go through the primer" — so only the
+    /// Whether this category may be scheduled at all, stated as *why not* —
+    /// which is the form SPEC §5's history needs. `nil` means nothing is in the
+    /// way.
+    ///
+    /// SPEC §9: "loud categories always go through the primer", so only the
     /// digest may ride on provisional authorization.
-    private func canSchedule(_ category: TallyNotificationCategory, status: PermissionStatus) -> Bool {
-        guard category.isImplemented, settings.isEnabled(category) else { return false }
-        if status == .authorized { return true }
-        if status == .provisional { return category.mayDeliverProvisionally }
-        return false
+    ///
+    /// Every caller applies this **after** working out whether there is anything
+    /// to say. A category that is off does not suppress a digest of a week that
+    /// had no news — there was no notification to suppress — and a log line
+    /// claiming otherwise would make the calibration surface useless.
+    private func suppressionReason(
+        _ category: TallyNotificationCategory,
+        status: PermissionStatus
+    ) -> NotificationSuppressionReason? {
+        guard category.isImplemented else { return .other(note: "Not available in this build") }
+        guard settings.isEnabled(category) else { return .categoryOff }
+        if status == .authorized { return nil }
+        if status == .provisional, category.mayDeliverProvisionally { return nil }
+        return .notAuthorized
     }
 
     /// Applies the category's quiet-hours policy (SPEC §5).
@@ -568,7 +660,17 @@ public final class NotificationService: NSObject {
         return content
     }
 
-    private func schedule(identifier: String, content: UNNotificationContent, at date: Date) async {
+    /// - Parameter proposed: when the trigger *wanted* to fire. Anything later
+    ///   than that means quiet hours moved it (SPEC §5), which is the line the
+    ///   history writes: "held until 09:00".
+    private func schedule(
+        identifier: String,
+        content: UNNotificationContent,
+        at date: Date,
+        category: TallyNotificationCategory,
+        proposedFor proposed: Date,
+        now: Date = Date()
+    ) async {
         let components = calendar.dateComponents(
             [.year, .month, .day, .hour, .minute, .second],
             from: date
@@ -576,6 +678,38 @@ public final class NotificationService: NSObject {
         let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: false)
         let request = UNNotificationRequest(identifier: identifier, content: content, trigger: trigger)
         await center.schedule(request)
+
+        history.recordScheduled(
+            category: NotificationRecordCategory(category),
+            requestIdentifier: identifier,
+            title: content.title,
+            subtitle: content.subtitle.isEmpty ? nil : content.subtitle,
+            body: content.body,
+            scheduledAt: date,
+            heldByQuietHoursUntil: date > proposed ? date : nil,
+            now: now
+        )
+    }
+
+    /// One line into SPEC §5's history for something this stream chose not to
+    /// send. Nothing here has a venue — the §5 categories are about the log, not
+    /// about a place (that is the Bar Radar family's business).
+    private func record(
+        _ reason: NotificationSuppressionReason,
+        category: TallyNotificationCategory,
+        identifier: String,
+        title: String,
+        body: String,
+        now: Date
+    ) {
+        history.recordSuppressed(
+            reason,
+            category: NotificationRecordCategory(category),
+            requestIdentifier: identifier,
+            title: title,
+            body: body,
+            now: now
+        )
     }
 
     private func dayKey(_ date: Date) -> String {
@@ -595,7 +729,51 @@ extension NotificationService: UNUserNotificationCenterDelegate {
         willPresent notification: UNNotification,
         withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
     ) {
+        // The only moment iOS tells the app a notification actually landed: a
+        // scheduled one that fires while the app is asleep produces no callback
+        // at all, so a record stays at `.scheduled` until it is answered.
+        NotificationService.recordOutcome(.delivered, for: notification, at: notification.date)
         completionHandler([.banner, .list, .sound])
+    }
+
+    /// SPEC §5: "what the user did with it (ignored, dismissed, an action
+    /// tapped, or opened)".
+    ///
+    /// Every category passes through here — this class's four *and* the Bar
+    /// Radar family, which registers its actionable categories through
+    /// `activate(additionalCategories:)` and shares this delegate. That is why
+    /// the outcome half of the history needs no code in `RadarService`.
+    nonisolated static func recordOutcome(
+        _ outcome: NotificationOutcome,
+        for notification: UNNotification,
+        at date: Date,
+        history: NotificationHistory = .shared
+    ) {
+        let request = notification.request
+        let content = request.content
+
+        let rawCategory =
+            (content.userInfo["tallyCategory"] as? String)
+            ?? TallyNotificationCategory.allCases
+                .first { content.categoryIdentifier.hasPrefix($0.identifier) }?
+                .rawValue
+            ?? content.categoryIdentifier
+
+        // SPEC §5's "venue if any". The key is `RadarIdentifiers.placeNameKey`,
+        // read as a literal so this class keeps knowing nothing about Bar Radar
+        // beyond the shape of its payload.
+        let venueName = (content.userInfo["radarPlaceName"] as? String).flatMap { $0.isEmpty ? nil : $0 }
+
+        history.recordOutcome(
+            outcome,
+            requestIdentifier: request.identifier,
+            category: NotificationRecordCategory(rawValue: rawCategory),
+            title: content.title,
+            subtitle: content.subtitle.isEmpty ? nil : content.subtitle,
+            body: content.body,
+            venueName: venueName,
+            at: date
+        )
     }
 
     nonisolated public func userNotificationCenter(
@@ -603,6 +781,16 @@ extension NotificationService: UNUserNotificationCenterDelegate {
         didReceive response: UNNotificationResponse,
         withCompletionHandler completionHandler: @escaping () -> Void
     ) {
+        // SPEC §5's history, before anything else: what the user did to a
+        // notification is the one part of the record only this callback knows.
+        let recorded: NotificationOutcome =
+            switch response.actionIdentifier {
+            case UNNotificationDefaultActionIdentifier: .opened
+            case UNNotificationDismissActionIdentifier: .dismissed
+            default: .actionTaken(identifier: response.actionIdentifier)
+            }
+        NotificationService.recordOutcome(recorded, for: response.notification, at: Date())
+
         let request = response.notification.request
         var userInfo: [String: String] = [:]
         for (key, value) in request.content.userInfo {

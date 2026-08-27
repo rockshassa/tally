@@ -64,9 +64,28 @@ enum SettingsA11y {
         static let quietHoursEndPicker = "settings.notifications.quietHoursEnd"
         static let statusRow = "settings.notifications.statusRow"
 
+        /// SPEC §5: "Surfaced as a reverse-chronological list in Settings →
+        /// Notifications → *History*."
+        static let historyRow = "settings.notifications.historyRow"
+
         static func toggle(_ category: TallyNotificationCategory) -> String {
             "settings.notifications.toggle.\(category.rawValue)"
         }
+    }
+
+    // MARK: Notification history (SPEC §5)
+
+    /// Nested under `settings.notifications.` rather than given a namespace of
+    /// its own: the screen is reached from that section and nowhere else, and
+    /// this file's rule is that identifiers read as the path to the thing.
+    enum NotificationHistory {
+        static let list = "settings.notifications.history.list"
+        static let filter = "settings.notifications.history.filter"
+        static let empty = "settings.notifications.history.empty"
+        static let clearButton = "settings.notifications.history.clearButton"
+        static let clearConfirmButton = "settings.notifications.history.clearConfirmButton"
+
+        static func row(_ id: UUID) -> String { "settings.notifications.history.row.\(id.uuidString)" }
     }
 
     // MARK: The post-first-Session primer (SPEC §9)

@@ -86,6 +86,11 @@ public final class RadarService {
     private let deriver: SessionDeriver
     private let calendar: Calendar
 
+    /// SPEC §5's notification history. This family bypasses
+    /// `NotificationService`'s quiet-hours gate entirely, so it has to record
+    /// its own decisions — see `deliver(_:fireDate:)`.
+    private let history: NotificationHistory
+
     private var modelContext: ModelContext?
     private let saveObserver = NotificationObserverToken()
     private var lastSeenEventAt: Date?
@@ -102,8 +107,10 @@ public final class RadarService {
         poiSearch: (any POISearching)? = nil,
         frequented: FrequentedVenues = FrequentedVenues(),
         deriver: SessionDeriver = SessionDeriver(),
-        calendar: Calendar = .current
+        calendar: Calendar = .current,
+        history: NotificationHistory? = nil
     ) {
+        self.history = history ?? .shared
         self.settings = settings ?? .shared
         self.store = store ?? RadarStore()
         self.notifier = notifier ?? LiveRadarNotifier()
@@ -318,7 +325,10 @@ public final class RadarService {
                     prompt.placeName = resolveTarget(venueID: venueID)?.name ?? ""
                 }
                 // "Still at  — anything to add?" is worse than silence.
-                guard !prompt.placeName.isEmpty else { break }
+                guard !prompt.placeName.isEmpty else {
+                    record(.other(note: "Venue name unknown"), prompt: prompt)
+                    break
+                }
                 await deliver(prompt, fireDate: date)
 
             case .cancelSessionReminder(let visitID):
@@ -340,12 +350,62 @@ public final class RadarService {
     ///   the one caller that has to know — it writes a "this Session has had its
     ///   prompt" record, and a prompt the category toggle refused was never had.
     @discardableResult
-    private func deliver(_ prompt: RadarPrompt, fireDate: Date?) async -> Bool {
+    private func deliver(_ prompt: RadarPrompt, fireDate: Date?, now: Date = Date()) async -> Bool {
+        // Built up front so SPEC §5's history holds the copy *as sent* whichever
+        // way the two gates below go.
+        let request = RadarNotificationBuilder.request(for: prompt, fireDate: fireDate, now: now)
+
         // The per-category toggle still applies (SPEC §5: "opt-in per category").
-        guard settings.isEnabled(prompt.category) else { return false }
-        guard await notifier.canDeliver() else { return false }
-        await notifier.deliver(RadarNotificationBuilder.request(for: prompt, fireDate: fireDate))
+        guard settings.isEnabled(prompt.category) else {
+            record(.categoryOff, prompt: prompt, request: request, now: now)
+            return false
+        }
+        guard await notifier.canDeliver() else {
+            record(.notAuthorized, prompt: prompt, request: request, now: now)
+            return false
+        }
+        await notifier.deliver(request)
+
+        if let fireDate {
+            history.recordScheduled(
+                category: NotificationRecordCategory(prompt.category),
+                requestIdentifier: request.identifier,
+                title: request.content.title,
+                body: request.content.body,
+                venueName: prompt.placeName.isEmpty ? nil : prompt.placeName,
+                scheduledAt: fireDate,
+                now: now
+            )
+        } else {
+            history.recordDelivered(
+                category: NotificationRecordCategory(prompt.category),
+                requestIdentifier: request.identifier,
+                title: request.content.title,
+                body: request.content.body,
+                venueName: prompt.placeName.isEmpty ? nil : prompt.placeName,
+                deliveredAt: now,
+                now: now
+            )
+        }
         return true
+    }
+
+    /// One line into SPEC §5's history for a Bar Radar prompt that was not sent.
+    private func record(
+        _ reason: NotificationSuppressionReason,
+        prompt: RadarPrompt,
+        request: UNNotificationRequest? = nil,
+        now: Date = Date()
+    ) {
+        history.recordSuppressed(
+            reason,
+            category: NotificationRecordCategory(prompt.category),
+            requestIdentifier: request?.identifier ?? prompt.requestIdentifier,
+            title: request?.content.title ?? prompt.category.title,
+            body: request?.content.body ?? "",
+            venueName: prompt.placeName.isEmpty ? nil : prompt.placeName,
+            now: now
+        )
     }
 
     private func dwellIdentifier(_ visitID: UUID) -> String {
@@ -417,7 +477,10 @@ public final class RadarService {
     /// other structural.
     private func deliverTrueUp(venueID: UUID, closedAt: Date) async {
         guard let session = closedSession(atVenue: venueID, closedAt: closedAt) else { return }
-        guard !store.hasSpentTrueUp(sessionID: session.id, asOf: closedAt) else { return }
+        guard !store.hasSpentTrueUp(sessionID: session.id, asOf: closedAt) else {
+            recordSpentTrueUp(sessionID: session.id, venueID: session.venueID, at: closedAt)
+            return
+        }
 
         guard let prompt = SessionTrueUp.prompt(
             for: session,
@@ -465,7 +528,10 @@ public final class RadarService {
     /// in `deliver(_:fireDate:)` is the control that matters here.
     private func projectTrueUp(asOf now: Date) async {
         guard let session = activeSession(asOf: now), !session.events.isEmpty else { return }
-        guard !store.hasSpentTrueUp(sessionID: session.id, asOf: now) else { return }
+        guard !store.hasSpentTrueUp(sessionID: session.id, asOf: now) else {
+            recordSpentTrueUp(sessionID: session.id, venueID: session.venueID, at: now)
+            return
+        }
 
         guard let prompt = SessionTrueUp.prompt(
             for: session,
@@ -480,6 +546,23 @@ public final class RadarService {
 
         guard await deliver(prompt, fireDate: fireDate) else { return }
         store.recordTrueUpScheduled(sessionID: session.id, fireDate: fireDate, at: now)
+    }
+
+    /// SPEC §2's "one per Session", as a line in SPEC §5's history.
+    ///
+    /// The history collapses this into the record of the prompt that spent the
+    /// budget rather than writing "not sent" over it, so a Session whose true-up
+    /// went out keeps saying so.
+    private func recordSpentTrueUp(sessionID: UUID, venueID: UUID?, at date: Date) {
+        let category = TallyNotificationCategory.sessionTrueUp
+        history.recordSuppressed(
+            .onePerVisit,
+            category: NotificationRecordCategory(category),
+            requestIdentifier: "\(category.identifier).\(sessionID.uuidString)",
+            title: category.title,
+            venueName: venueName(venueID: venueID),
+            now: date
+        )
     }
 
     /// The Session a geofence exit just closed.
@@ -536,6 +619,7 @@ public final class RadarService {
         // outside discovery hours should cost nothing at all.
         if let rejection = gate.preflight(visit: visit, context: context, asOf: now, calendar: calendar) {
             lastDiscoveryRejection = rejection
+            record(discoveryRejection: rejection, asOf: now)
             return
         }
 
@@ -547,6 +631,7 @@ public final class RadarService {
         let decision = gate.resolve(candidates: candidates, visit: visit, context: context)
         guard case .prompt(let candidate) = decision else {
             lastDiscoveryRejection = decision.rejection
+            if let rejection = decision.rejection { record(discoveryRejection: rejection, asOf: now) }
             return
         }
 
@@ -565,6 +650,34 @@ public final class RadarService {
             place: RadarPlace(candidate: candidate)
         )
         await deliver(prompt, fireDate: nil)
+    }
+
+    /// The discovery gates SPEC §5's history is allowed to name.
+    ///
+    /// Only the two that held back a prompt the user could have had: the weekly
+    /// cap, and a spot they told Tally to forget. Every other rejection is a
+    /// visit that was never a prompt — SPEC §10 has those "discarded immediately
+    /// and never stored", and a history line saying a place was considered would
+    /// be exactly the storage that sentence forbids.
+    ///
+    /// The identifier is per reason rather than per visit, so a night of visits
+    /// against a spent weekly cap costs one row, not one per visit.
+    private func record(discoveryRejection rejection: DiscoveryGate.Rejection, asOf now: Date) {
+        let reason: NotificationSuppressionReason
+        switch rejection {
+        case .weeklyCapReached: reason = .weeklyCap
+        case .suppressedPlace: reason = .other(note: "Suppressed place")
+        default: return
+        }
+
+        let category = TallyNotificationCategory.barRadarDiscovery
+        history.recordSuppressed(
+            reason,
+            category: NotificationRecordCategory(category),
+            requestIdentifier: "\(category.identifier).suppressed.\(reason.kind)",
+            title: category.title,
+            now: now
+        )
     }
 
     private func discoveryContext(asOf now: Date) -> DiscoveryGate.Context {
