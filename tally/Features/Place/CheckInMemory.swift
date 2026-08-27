@@ -51,6 +51,13 @@ public final class CheckInMemory {
     }
 
     public func recordDismissal(for sessionID: UUID) {
+        // A confirmation outranks a later dismissal for the same outing. The
+        // two can now arrive in that order — SPEC §2's picker can resolve a
+        // Session out from under a check-in sheet that is still on screen — and
+        // "you already told us where you are" must not be undone by waving off
+        // the question afterwards.
+        if case .confirmed = decision(for: sessionID) { return }
+
         entries[sessionID] = Entry(venueID: nil, recordedAt: Date())
         persist()
     }

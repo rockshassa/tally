@@ -12,8 +12,16 @@ final class PlaceFeatureSlots: FeatureSlots {
     private let permissions: any PermissionsService
 
     init(container: ModelContainer, permissions: any PermissionsService) {
-        self.coordinator = PlaceCoordinator(modelContext: container.mainContext)
+        let coordinator = PlaceCoordinator(modelContext: container.mainContext)
+        self.coordinator = coordinator
         self.permissions = permissions
+
+        // SPEC §2: a Bar Radar notification tap-through opens the check-in
+        // picker, and the handler that receives it has no view — and therefore
+        // no coordinator — to ask. Publishing this instance is what lets
+        // `PlaceCoordinator.presentPickerForCurrentFix()` resolve against the
+        // same pipeline state (and the same `CheckInMemory`) the sheet uses.
+        PlaceCoordinator.registerShared(coordinator)
     }
 
     /// SPEC §2: runs the inference pipeline (saved venues → POI lookup) and

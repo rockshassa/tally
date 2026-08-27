@@ -15,16 +15,33 @@ public struct CheckInSheet: View {
     private let onConfirm: (VenueCandidate) -> Void
     private let onDismiss: () -> Void
 
-    @State private var showingAlternates = false
+    /// SPEC §2's *Not a bar / don't ask here*, offered inside the picker. Nil
+    /// when the host wired the sheet with plain callbacks and has nowhere to
+    /// write a `SuppressedPlace`.
+    private let onSuppress: ((LocationFix?) -> Void)?
+
+    private let savedVenues: [VenueSnapshot]
+    private let locationService: (any LocationFixProviding)?
+    private let poiSearch: (any POISearching)?
+
+    @State private var showingPicker = false
     @State private var detent: PresentationDetent = .height(400)
 
     public init(
         context: CheckInPrompt,
+        savedVenues: [VenueSnapshot] = [],
+        locationService: (any LocationFixProviding)? = nil,
+        poiSearch: (any POISearching)? = nil,
         onConfirm: @escaping (VenueCandidate) -> Void,
+        onSuppress: ((LocationFix?) -> Void)? = nil,
         onDismiss: @escaping () -> Void
     ) {
         self.context = context
+        self.savedVenues = savedVenues
+        self.locationService = locationService
+        self.poiSearch = poiSearch
         self.onConfirm = onConfirm
+        self.onSuppress = onSuppress
         self.onDismiss = onDismiss
     }
 
@@ -33,12 +50,23 @@ public struct CheckInSheet: View {
     public init(
         context: CheckInPrompt,
         coordinator: PlaceCoordinator,
+        locationService: (any LocationFixProviding)? = nil,
+        poiSearch: (any POISearching)? = nil,
         onFinish: @escaping () -> Void = {}
     ) {
+        let request = CheckInPickerRequest(prompt: context)
         self.init(
             context: context,
+            savedVenues: coordinator.savedVenues(),
+            locationService: locationService,
+            poiSearch: poiSearch,
             onConfirm: { candidate in
                 coordinator.confirmCheckIn(candidate, in: context)
+                onFinish()
+            },
+            onSuppress: { fix in
+                coordinator.suppressAndDismissPicker(request, at: fix)
+                coordinator.dismissCheckIn(context)
                 onFinish()
             },
             onDismiss: {
@@ -49,24 +77,39 @@ public struct CheckInSheet: View {
     }
 
     public var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            if showingAlternates {
-                alternatesHeader
-                alternatesList
+        Group {
+            if showingPicker {
+                // SPEC §2's picker, in place rather than stacked on top: the
+                // sheet's dismissal contract (any resolution dismisses
+                // everything) survives because every path out of the picker is
+                // this sheet's own callback.
+                CheckInPickerList(
+                    request: CheckInPickerRequest(prompt: context),
+                    savedVenues: savedVenues,
+                    locationService: locationService,
+                    poiSearch: poiSearch,
+                    onPick: onConfirm,
+                    onSuppress: onSuppress,
+                    onDismiss: onDismiss,
+                    onBack: {
+                        showingPicker = false
+                        detent = .height(400)
+                    }
+                )
             } else {
                 primaryContent
+                    .padding(.horizontal, 22)
+                    .padding(.top, 18)
+                    .padding(.bottom, 26)
             }
         }
-        .padding(.horizontal, 22)
-        .padding(.top, 18)
-        .padding(.bottom, 26)
         .frame(maxWidth: .infinity, alignment: .leading)
         .placeNightSurface()
         .presentationDetents([.height(400), .large], selection: $detent)
         .presentationDragIndicator(.visible)
         .presentationBackground(PlacePalette.backgroundDeep)
         .presentationCornerRadius(28)
-        .animation(.snappy(duration: 0.25), value: showingAlternates)
+        .animation(.snappy(duration: 0.25), value: showingPicker)
     }
 
     // MARK: - Confident candidate
@@ -111,25 +154,26 @@ public struct CheckInSheet: View {
                         .foregroundStyle(PlacePalette.backgroundDeep)
                 }
 
-                if !context.alternates.isEmpty {
-                    Button {
-                        showingAlternates = true
-                        detent = .large
-                    } label: {
-                        Text("Somewhere else nearby…")
-                            .font(.system(size: 15, weight: .medium))
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 13)
-                            .background(
-                                RoundedRectangle(cornerRadius: 15, style: .continuous)
-                                    .fill(PlacePalette.glassStrong)
-                            )
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 15, style: .continuous)
-                                    .strokeBorder(PlacePalette.line, lineWidth: 1)
-                            )
-                            .foregroundStyle(PlacePalette.ink)
-                    }
+                // Always offered, even with nothing else in hand: SPEC §2's
+                // picker searches again from a fresh fix, so "somewhere else"
+                // is a question the sheet can always answer.
+                Button {
+                    showingPicker = true
+                    detent = .large
+                } label: {
+                    Text("Somewhere else nearby…")
+                        .font(.system(size: 15, weight: .medium))
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 13)
+                        .background(
+                            RoundedRectangle(cornerRadius: 15, style: .continuous)
+                                .fill(PlacePalette.glassStrong)
+                        )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 15, style: .continuous)
+                                .strokeBorder(PlacePalette.line, lineWidth: 1)
+                        )
+                        .foregroundStyle(PlacePalette.ink)
                 }
 
                 Button("Not now", action: onDismiss)
@@ -141,53 +185,6 @@ public struct CheckInSheet: View {
         }
     }
 
-    // MARK: - "Somewhere else nearby…"
-
-    private var alternatesHeader: some View {
-        HStack(spacing: 10) {
-            Button {
-                showingAlternates = false
-                detent = .height(400)
-            } label: {
-                Image(systemName: "chevron.left")
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(PlacePalette.ink2)
-            }
-            .buttonStyle(.plain)
-
-            Text("Nearby")
-                .font(.system(size: 20, weight: .semibold))
-                .foregroundStyle(PlacePalette.ink)
-
-            Spacer()
-
-            Button("Not now", action: onDismiss)
-                .font(.system(size: 14, weight: .medium))
-                .foregroundStyle(PlacePalette.ink3)
-                .buttonStyle(.plain)
-        }
-        .padding(.bottom, 14)
-    }
-
-    private var alternatesList: some View {
-        ScrollView {
-            VStack(spacing: 8) {
-                ForEach(context.allCandidates) { candidate in
-                    Button {
-                        onConfirm(candidate)
-                    } label: {
-                        VenueCandidateRow(
-                            candidate: candidate,
-                            isHighlighted: candidate.id == context.primary.id
-                        )
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
-            .padding(.bottom, 12)
-        }
-        .scrollIndicators(.hidden)
-    }
 }
 
 // MARK: - Entry point
