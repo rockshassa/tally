@@ -57,3 +57,22 @@ private struct SelfDismissingCheckIn: View {
         CheckInSheet(context: prompt, coordinator: coordinator, onFinish: { dismiss() })
     }
 }
+
+// MARK: - Bar Radar tap-through (SPEC §2)
+
+extension PlaceCoordinator {
+
+    /// Bridges Radar's suggestion vocabulary to the picker's, so neither module
+    /// has to know the other's types. Wired once in `TallyApp`.
+    @MainActor
+    static func present(suggestion: CheckInPickerSuggestion?) {
+        switch suggestion {
+        case .venue(let id):
+            presentPickerForCurrentFix(suggestingVenueWith: id)
+        case .place(let place):
+            presentPickerForCurrentFix(suggesting: place.candidate)
+        case nil:
+            presentPickerForCurrentFix()
+        }
+    }
+}

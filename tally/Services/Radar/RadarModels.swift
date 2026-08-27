@@ -638,3 +638,20 @@ nonisolated public enum RadarEffect: Hashable, Sendable {
     /// one describes.
     case deliverTrueUp(venueID: UUID, closedAt: Date)
 }
+
+// MARK: - Check-in picker hand-off
+
+/// What a Bar Radar prompt knew about where you are, handed to the check-in
+/// picker when its notification is tapped (SPEC §2).
+///
+/// It lives here rather than in `Features/Place` so the radar module can name it
+/// without depending on the picker: Radar publishes the hint, Place decides what
+/// to do with it, and the integrator connects the two in one line.
+nonisolated public enum CheckInPickerSuggestion: Hashable, Sendable {
+
+    /// A saved venue holding a geofence (Tier 1).
+    case venue(UUID)
+
+    /// A POI that discovery matched but that has no venue record yet.
+    case place(RadarPlace)
+}

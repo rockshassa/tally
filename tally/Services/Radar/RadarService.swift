@@ -34,7 +34,7 @@ import UserNotifications
 /// NotificationService.shared.actionHandler = { RadarService.handleAction($0) }
 /// // SPEC §2: tapping a Bar Radar prompt opens the check-in picker, not the
 /// // bare counter. See `checkInPickerRequestHandler`.
-/// RadarService.checkInPickerRequestHandler = { PlaceCoordinator.presentPickerForCurrentFix() }
+/// RadarService.checkInPickerRequestHandler = { PlaceCoordinator.present(suggestion: $0) }
 /// // and, on the root view:
 /// .barRadarCoordination(permissions: permissions)
 /// ```
@@ -91,8 +91,8 @@ public final class RadarService {
     /// and `actionHandler` are already wired:
     ///
     /// ```swift
-    /// RadarService.checkInPickerRequestHandler = {
-    ///     PlaceCoordinator.presentPickerForCurrentFix()
+    /// RadarService.checkInPickerRequestHandler = { suggestion in
+    ///     PlaceCoordinator.present(suggestion: suggestion)
     /// }
     /// ```
     ///
@@ -101,12 +101,15 @@ public final class RadarService {
     /// `NotificationService`'s delegate callback. Presenting straight from it is
     /// safe and is the point: the sheet should be on screen as the app finishes
     /// coming up, not a frame later.
-    public var checkInPickerRequestHandler: (() -> Void)?
+    /// The suggestion is what the banner named — the picker marks that row
+    /// "Suggested" rather than assuming it. `nil` means the prompt named nothing
+    /// resolvable, and the picker just ranks by distance.
+    public var checkInPickerRequestHandler: ((CheckInPickerSuggestion?) -> Void)?
 
     /// The same hook on the shared instance, so the integrator's line matches the
     /// two beside it (`RadarService.notificationCategories`,
     /// `RadarService.handleAction`).
-    public static var checkInPickerRequestHandler: (() -> Void)? {
+    public static var checkInPickerRequestHandler: ((CheckInPickerSuggestion?) -> Void)? {
         get { shared.checkInPickerRequestHandler }
         set { shared.checkInPickerRequestHandler = newValue }
     }
@@ -698,7 +701,13 @@ public final class RadarService {
     private func requestCheckInPicker(for payload: RadarActionPayload) {
         switch payload.kind {
         case .arrival, .dwell, .discovery, .sessionReminder:
-            checkInPickerRequestHandler?()
+            // Tier 1 knows a saved venue; discovery only ever has the POI it
+            // matched. Either way the picker treats it as a hint, not an answer.
+            let suggestion: CheckInPickerSuggestion? =
+                if let venueID = payload.venueID { .venue(venueID) }
+                else if let place = payload.place { .place(place) }
+                else { nil }
+            checkInPickerRequestHandler?(suggestion)
         case .trueUp:
             break
         }

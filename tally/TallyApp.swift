@@ -34,6 +34,10 @@ struct TallyApp: App {
         PhoneConnectivityService.shared.activate()
         NotificationService.shared.activate(additionalCategories: RadarService.notificationCategories)
         NotificationService.shared.actionHandler = { RadarService.handleAction($0) }
+        // SPEC §2: a Bar Radar tap opens the ranked check-in picker, not the
+        // bare counter — the inferred venue can be wrong, and the tap is the
+        // user asking to look.
+        RadarService.checkInPickerRequestHandler = { PlaceCoordinator.present(suggestion: $0) }
     }
 
     var body: some Scene {
