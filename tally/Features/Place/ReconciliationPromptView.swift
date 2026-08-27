@@ -219,6 +219,13 @@ public extension View {
 
     /// Attach at the app's root view. Offers venue tagging for recent widget and
     /// watch events that never got a fix (SPEC §6, §7).
+    ///
+    /// It also hosts SPEC §2's check-in picker, because this is the root hook
+    /// this feature already owns and the picker needs one: a Bar Radar
+    /// tap-through has to reach a screen from a notification handler. Hosts that
+    /// would rather be explicit can attach `.checkInPicker(coordinator:)`
+    /// themselves — the first host to claim the presentation wins, so doing both
+    /// is harmless.
     func venueReconciliation(
         locationService: (any LocationFixProviding)? = nil,
         poiSearch: (any POISearching)? = nil,
@@ -231,5 +238,6 @@ public extension View {
                 lookback: lookback
             )
         )
+        .checkInPicker()
     }
 }
