@@ -449,6 +449,20 @@ public struct SettingsScreen: View {
             )
             .settingsRowBackground()
             .accessibilityIdentifier(SettingsA11y.Notifications.statusRow)
+
+            // SPEC §5: "Surfaced as a reverse-chronological list in Settings →
+            // Notifications → *History*."
+            NavigationLink {
+                NotificationHistoryView()
+            } label: {
+                SettingsNavigationRow(
+                    title: "History",
+                    detail: "Last 30 days",
+                    systemImage: "clock.arrow.circlepath"
+                )
+            }
+            .settingsRowBackground()
+            .accessibilityIdentifier(SettingsA11y.Notifications.historyRow)
         } header: {
             SettingsSectionHeader(title: "Notifications")
         } footer: {
@@ -785,6 +799,9 @@ public struct SettingsScreen: View {
         // no longer exists.
         service.cancelAll()
         service.resetSchedulingHistory()
+        // SPEC §5/§10: the notification history is "never synced, and cleared by
+        // erase-all". It describes notifications about a log that is now gone.
+        NotificationHistory.shared.clear()
         ActivityInsightScheduler.shared.resetSchedulingHistory()
         Task { await RadarService.shared.eraseAll() }
 

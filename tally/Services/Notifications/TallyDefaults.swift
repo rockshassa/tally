@@ -48,6 +48,10 @@ public enum TallyDefaults {
         /// digest's silent opt-in happens exactly once (SPEC §9 etiquette).
         public static let provisionalRequested = "tally.notifications.provisionalRequested"
 
+        /// SPEC §5's notification history: one JSON blob, App Group only, never
+        /// synced (SPEC §10). See `NotificationHistory`.
+        public static let notificationHistory = "tally.notifications.history"
+
         /// Bookkeeping for the ≤ 1/week rate limits.
         public static let lastTrendAlertAt = "tally.notifications.lastTrendAlertAt"
         public static let lastTrendAlertSignature = "tally.notifications.lastTrendAlertSignature"
@@ -196,6 +200,7 @@ public enum TallyDefaults {
             Keys.quietHoursEndMinutes,
             Keys.notificationsPrimerShown,
             Keys.provisionalRequested,
+            Keys.notificationHistory,
             Keys.lastTrendAlertAt,
             Keys.lastTrendAlertSignature,
             Keys.lastStreakNudgeDay,

@@ -437,7 +437,7 @@ struct CheckInPickerTapThroughTests {
     func defaultActionRequestsThePicker(kind: RadarPrompt.Kind) async {
         let service = self.service()
         var requests = 0
-        service.checkInPickerRequestHandler = { requests += 1 }
+        service.checkInPickerRequestHandler = { _ in requests += 1 }
 
         service.handleAction(action(prompt(kind), UNNotificationDefaultActionIdentifier))
         await settle()
@@ -449,7 +449,7 @@ struct CheckInPickerTapThroughTests {
     func trueUpDoesNotAsk() async {
         let service = self.service()
         var requests = 0
-        service.checkInPickerRequestHandler = { requests += 1 }
+        service.checkInPickerRequestHandler = { _ in requests += 1 }
 
         service.handleAction(action(prompt(.trueUp), UNNotificationDefaultActionIdentifier))
         await settle()
@@ -471,7 +471,7 @@ struct CheckInPickerTapThroughTests {
     func buttonsDoNotAsk(identifier: String) async {
         let service = self.service()
         var requests = 0
-        service.checkInPickerRequestHandler = { requests += 1 }
+        service.checkInPickerRequestHandler = { _ in requests += 1 }
 
         service.handleAction(action(prompt(.arrival), identifier))
         await settle()
@@ -483,7 +483,7 @@ struct CheckInPickerTapThroughTests {
     func foreignNotificationIsIgnored() async {
         let service = self.service()
         var requests = 0
-        service.checkInPickerRequestHandler = { requests += 1 }
+        service.checkInPickerRequestHandler = { _ in requests += 1 }
 
         service.handleAction(
             NotificationAction(
@@ -511,7 +511,7 @@ struct CheckInPickerTapThroughTests {
     func eachTapAsksOnce() async {
         let service = self.service()
         var requests = 0
-        service.checkInPickerRequestHandler = { requests += 1 }
+        service.checkInPickerRequestHandler = { _ in requests += 1 }
 
         service.handleAction(action(prompt(.arrival), UNNotificationDefaultActionIdentifier))
         service.handleAction(action(prompt(.discovery), UNNotificationDefaultActionIdentifier))
@@ -539,7 +539,7 @@ struct CheckInPickerTapThroughTests {
 
         let service = self.service(store: store)
         var requests = 0
-        service.checkInPickerRequestHandler = { requests += 1 }
+        service.checkInPickerRequestHandler = { _ in requests += 1 }
 
         service.handleAction(
             action(prompt(.dwell, visitID: visit.id), UNNotificationDefaultActionIdentifier)
@@ -553,13 +553,28 @@ struct CheckInPickerTapThroughTests {
         #expect(requests == 1)
     }
 
+    @Test("The banner's venue rides along as the picker's suggestion")
+    func defaultActionCarriesTheSuggestion() async {
+        let service = self.service()
+        var received: [CheckInPickerSuggestion?] = []
+        service.checkInPickerRequestHandler = { received.append($0) }
+
+        // A Tier 1 prompt names a saved venue, so the picker is told which row
+        // to mark "Suggested" rather than being left to guess.
+        service.handleAction(action(prompt(.arrival), UNNotificationDefaultActionIdentifier))
+        await settle()
+
+        #expect(received.count == 1)
+        #expect(received.first ?? nil == .venue(venueID))
+    }
+
     @Test("The static hook and the instance property are the same seam")
     func staticHookMirrorsTheInstance() {
         var requests = 0
-        RadarService.checkInPickerRequestHandler = { requests += 1 }
+        RadarService.checkInPickerRequestHandler = { _ in requests += 1 }
         defer { RadarService.checkInPickerRequestHandler = nil }
 
-        RadarService.shared.checkInPickerRequestHandler?()
+        RadarService.shared.checkInPickerRequestHandler?(nil)
 
         #expect(requests == 1)
         #expect(RadarService.checkInPickerRequestHandler != nil)
