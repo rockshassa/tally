@@ -838,6 +838,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = Tally;
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "Tally compares your activity against your own drinking history, entirely on this device, to show whether drinking is eating into it. Nothing is uploaded.";
 				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "Tally can save the drinks you log to Health as alcoholic beverages. This stays off until you turn it on.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Tally takes one location fix at the moment you log a drink, so it can tag the venue. It never tracks you in between, and the fix never leaves your device.";
@@ -872,6 +873,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = Tally;
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "Tally compares your activity against your own drinking history, entirely on this device, to show whether drinking is eating into it. Nothing is uploaded.";
 				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "Tally can save the drinks you log to Health as alcoholic beverages. This stays off until you turn it on.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Tally takes one location fix at the moment you log a drink, so it can tag the venue. It never tracks you in between, and the fix never leaves your device.";

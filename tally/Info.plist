@@ -10,5 +10,11 @@
 	<array>
 		<string>remote-notification</string>
 	</array>
+	<!-- Export compliance: Tally uses only exempt encryption (HTTPS, CloudKit).
+	     Declaring it here keeps App Store Connect from holding every TestFlight
+	     build for a compliance answer. The watch app declares the same via
+	     INFOPLIST_KEY_ITSAppUsesNonExemptEncryption in its build settings. -->
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 </dict>
 </plist>
