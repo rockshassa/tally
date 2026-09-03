@@ -1,6 +1,7 @@
 import CoreLocation
 import SwiftUI
 import TallyKit
+import SwiftData
 
 /// SPEC §2's check-in picker.
 ///
