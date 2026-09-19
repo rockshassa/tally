@@ -12,7 +12,7 @@ import TallyKit
 public enum VenueWriter {
 
     /// SPEC §1: name + proximity is how user-defined venues dedupe.
-    public static let dedupeProximityMeters: CLLocationDistance = 60
+    nonisolated public static let dedupeProximityMeters: CLLocationDistance = 60
 
     // MARK: - Lookup
 

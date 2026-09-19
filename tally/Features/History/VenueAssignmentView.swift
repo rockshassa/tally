@@ -23,12 +23,14 @@ public struct VenueAssignmentView: View {
 
     // MARK: State
 
-    @State private var query = ""
     @State private var nearby: [VenueCandidate] = []
-    @State private var searchResults: [VenueCandidate] = []
     @State private var isLoading = false
     @State private var resolvedAnchor: LocationFix?
     @State private var resolvedPOISearch: (any POISearching)?
+
+    /// SPEC §2's venue search, shared verbatim with the check-in picker: the
+    /// field types, the model debounces, one request is in flight at a time.
+    @State private var search: VenueSearchModel
 
     /// How far out the "nearby" list looks. Wider than the check-in radius on
     /// purpose — this is a deliberate choice after the fact, not an inference.
@@ -52,6 +54,7 @@ public struct VenueAssignmentView: View {
         self.onAssign = onAssign
         self.onClear = onClear
         self.onCancel = onCancel
+        _search = State(initialValue: VenueSearchModel(service: poiSearch, anchor: anchorFix))
     }
 
     /// Convenience for History: anchors the nearby search on where the drinks
@@ -79,7 +82,7 @@ public struct VenueAssignmentView: View {
     /// The first event that carries coordinates. A Session logged from the
     /// widget or watch may have none at all (SPEC §6, §7) — then the nearby
     /// list falls back to a fresh fix.
-    public static func anchor(for events: [DrinkEventSnapshot]) -> LocationFix? {
+    nonisolated public static func anchor(for events: [DrinkEventSnapshot]) -> LocationFix? {
         guard let located = events.first(where: { $0.hasCoordinates }),
               let latitude = located.latitude,
               let longitude = located.longitude
@@ -105,6 +108,7 @@ public struct VenueAssignmentView: View {
         .presentationBackground(PlacePalette.backgroundDeep)
         .presentationCornerRadius(28)
         .task { await loadNearby() }
+        .onDisappear { search.cancel() }
     }
 
     private var header: some View {
@@ -129,17 +133,15 @@ public struct VenueAssignmentView: View {
                 .font(.system(size: 13))
                 .foregroundStyle(PlacePalette.ink3)
 
-            TextField("Search for a place", text: $query)
+            TextField("Search or name this place", text: $search.query)
                 .font(.system(size: 15))
                 .foregroundStyle(PlacePalette.ink)
-                .submitLabel(.search)
-                .onSubmit { Task { await runSearch() } }
+                .submitLabel(.done)
                 .autocorrectionDisabled()
 
-            if !query.isEmpty {
+            if !search.query.isEmpty {
                 Button {
-                    query = ""
-                    searchResults = []
+                    search.clear()
                 } label: {
                     Image(systemName: "xmark.circle.fill")
                         .font(.system(size: 14))
@@ -179,10 +181,30 @@ public struct VenueAssignmentView: View {
                     }
                 }
 
-                if isLoading {
+                // SPEC §2: "When the typed name isn't on screen, *Use "X"*
+                // creates a user-defined venue at the fix." The same row the
+                // check-in picker offers, from the same rule.
+                if let typed = typedNameCandidate {
+                    useTypedNameRow(typed)
+                }
+
+                // SPEC §2: a failed lookup is not an empty one.
+                if search.state == .unavailable {
+                    HStack(spacing: 8) {
+                        Image(systemName: "wifi.exclamationmark")
+                            .font(.system(size: 13))
+                            .foregroundStyle(PlacePalette.ink3)
+                        Text("Search unavailable")
+                            .font(.system(size: 13))
+                            .foregroundStyle(PlacePalette.ink3)
+                    }
+                    .padding(.vertical, 12)
+                }
+
+                if isLoading || search.state == .searching {
                     HStack(spacing: 8) {
                         ProgressView().controlSize(.small)
-                        Text("Looking around…")
+                        Text(search.state == .searching ? "Searching…" : "Looking around…")
                             .font(.system(size: 13))
                             .foregroundStyle(PlacePalette.ink3)
                     }
@@ -211,9 +233,44 @@ public struct VenueAssignmentView: View {
         Button {
             onAssign(candidate)
         } label: {
-            VenueCandidateRow(candidate: candidate, showsDistance: activeAnchor != nil)
+            // The picker's row, for the picker's distances: this list is read
+            // in whatever units the reader's locale uses, not always meters.
+            CheckInPickerRow(candidate: candidate, hasFix: activeAnchor != nil)
         }
         .buttonStyle(.plain)
+    }
+
+    private func useTypedNameRow(_ candidate: VenueCandidate) -> some View {
+        Button {
+            onAssign(candidate)
+        } label: {
+            HStack(spacing: 12) {
+                Image(systemName: "plus.circle.fill")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(PlacePalette.amberBright)
+                    .frame(width: 26)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Use “\(candidate.name)”")
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundStyle(PlacePalette.ink)
+                        .lineLimit(1)
+
+                    Text(anchorFix == nil ? "Saves a new venue right here" : "Saves a new venue where you logged")
+                        .font(.system(size: 12.5))
+                        .foregroundStyle(PlacePalette.ink3)
+                }
+
+                Spacer(minLength: 8)
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 12)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .placeGlassCard(tint: PlacePalette.amberBright, cornerRadius: 14)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier(CheckInPickerA11y.useTypedName)
     }
 
     private func sectionHeader(_ text: String) -> some View {
@@ -236,17 +293,39 @@ public struct VenueAssignmentView: View {
 
     private var filteredSaved: [VenueCandidate] {
         let candidates = savedVenues.map { VenueCandidate(venue: $0, fix: activeAnchor) }
-        guard !query.isEmpty else { return candidates.sorted(by: VenueCandidate.isOrderedBefore) }
-        return candidates
-            .filter { $0.name.localizedCaseInsensitiveContains(query) }
+        guard !search.query.isEmpty else { return candidates.sorted(by: VenueCandidate.isOrderedBefore) }
+        return CheckInPickerRanking.filtered(candidates, by: search.query)
             .sorted(by: VenueCandidate.isOrderedBefore)
     }
 
     /// Saved venues already have their own section; don't list them twice.
+    /// The query narrows this list as well — with search running as you type,
+    /// an unfiltered "near where you logged" would bury the answer.
     private var filteredNearby: [VenueCandidate] {
-        nearby.filter { candidate in
-            !savedVenues.contains { candidate.matches($0) }
-        }
+        CheckInPickerRanking.filtered(
+            nearby.filter { candidate in
+                !savedVenues.contains { candidate.matches($0) }
+            },
+            by: search.query
+        )
+    }
+
+    /// SPEC §2's remote results, minus anything the two local sections already
+    /// show, with saved venues winning name and identity.
+    private var searchResults: [VenueCandidate] {
+        VenueSearchRanking.merged(
+            remote: search.results,
+            nearby: filteredSaved + filteredNearby,
+            saved: savedVenues
+        )
+    }
+
+    private var typedNameCandidate: VenueCandidate? {
+        CheckInPickerRanking.typedNameCandidate(
+            for: search.query,
+            matching: searchResults + filteredSaved + filteredNearby,
+            fix: activeAnchor
+        )
     }
 
     private func loadNearby() async {
@@ -263,24 +342,12 @@ public struct VenueAssignmentView: View {
             let service = locationService ?? LocationService()
             fix = await service.oneShotFix()
             resolvedAnchor = fix
+            // SPEC §2: results are anchored to the fix, or to where the drinks
+            // were logged — whichever this sheet turned out to have.
+            search.anchor = fix
         }
 
-        guard let fix, let search = poiSearch ?? resolvedPOISearch else { return }
-        nearby = await search.nearbyVenues(around: fix, radiusMeters: Self.nearbyRadiusMeters)
-    }
-
-    private func runSearch() async {
-        let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else {
-            searchResults = []
-            return
-        }
-        if resolvedPOISearch == nil, poiSearch == nil {
-            resolvedPOISearch = POISearchService()
-        }
-        guard let search = poiSearch ?? resolvedPOISearch else { return }
-        isLoading = true
-        defer { isLoading = false }
-        searchResults = await search.search(trimmed, near: activeAnchor?.coordinate)
+        guard let fix, let poi = poiSearch ?? resolvedPOISearch else { return }
+        nearby = await poi.nearbyVenues(around: fix, radiusMeters: Self.nearbyRadiusMeters)
     }
 }

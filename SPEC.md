@@ -14,7 +14,7 @@ The main screen is a counter, nothing else:
 - **Decrement (−)** removes the *most recent* alcoholic drink event from today (undo semantics — it deletes the event, including its location/venue data). No-op at zero.
 - **Secondary button: +1 non-alcoholic drink** (water, soda, NA beer — one bucket, no subtypes in v1). Same decrement semantics.
 - Haptic + count animation on tap; today's tallies always visible.
-- While a Session is active (§2), the counter shows a live Session card: venue, counts, spacers, elapsed time.
+- While a Session is active (§2), the counter shows a live Session card: venue, counts, spacers, elapsed time. **Tapping the card opens the check-in picker (§2)** to assign — or change — the Session's venue: the one picker, not a second UI. An untagged card says so ("Session in progress · tap to add where").
 - **Retro-logging:** long-press either button to add a drink at a custom time (no location attached, since we can't know where you were).
 
 ### Data model
@@ -76,10 +76,11 @@ Storage: **SwiftData in an App Group container** shared by the app and widget ex
 1. **User venues first.** If the fix falls inside a saved venue's geofence (Home, or a previously confirmed bar), auto-tag the event. No prompt.
 2. **POI lookup.** Otherwise run an `MKLocalSearch` (MapKit points-of-interest) around the fix, filtered to nightlife/bar/brewery/restaurant/cafe categories within ~75 m.
 3. **Check-in prompt.** If there's a single confident candidate (nearest POI, distance < accuracy + 50 m), show a non-blocking sheet: *"Looks like you're at **The Anchor** — check in?"* Confirm / pick another nearby result / dismiss.
-   - **Check-in picker.** "Somewhere else nearby…", and any tap-through from a Bar Radar notification, open a ranked list: every nearby candidate **ordered by distance**, each row showing name, category, and distance, with the inferred venue marked. Includes saved venues in range, a live-updating distance as a fresh fix arrives, a search field for naming a place MapKit doesn't return, and *Not a bar / don't ask here* which writes a `SuppressedPlace` (§2 discovery). Picking a venue tags the Session and dismisses.
+   - **Check-in picker.** "Somewhere else nearby…", and any tap-through from a Bar Radar notification, open a ranked list: every nearby candidate **ordered by distance**, each row showing name, category, and distance, with the inferred venue marked. Includes saved venues in range, a live-updating distance as a fresh fix arrives, a search field, and *Not a bar / don't ask here* which writes a `SuppressedPlace` (§2 discovery). Picking a venue tags the Session and dismisses.
+   - **Venue search.** The search field searches MapKit **as you type**: debounced (~300 ms), one in-flight request at a time, stale responses discarded. Results are anchored to the fix (or to where the drinks were logged, from History), tried bar-first (nightlife/brewery/distillery/winery, then restaurant/cafe), and **widened** — any place, then a wider region — only when the narrower pass finds nothing, so "bowling alley" still works. Ranking: name match quality (exact, then prefix, then contains), then bar categories, then distance. Results dedupe against the nearby list and saved venues by §1's rule, the saved venue winning name and identity. A failed lookup reads as *Search unavailable*, never as *No match*. When the typed name isn't on screen, *Use "X"* creates a user-defined venue at the fix.
    - Confirming saves the venue and tags the event. **Subsequent drinks within the same Session auto-tag silently** — you get asked once per outing, not per drink.
    - Dismissing tags nothing and doesn't re-prompt this Session.
-4. **Ambiguous or no results:** tag with raw coordinates only; the history view lets you assign a venue later.
+4. **Ambiguous or no results:** tag with raw coordinates only; the history view — and the live Session card (§1) — let you assign a venue later, through the same picker and search.
 
 **Home** is a user-defined venue set during onboarding ("Set my home location"), not inferred — inferring where someone sleeps is a privacy footgun. Drinks at home are tagged without any prompt.
 

@@ -43,7 +43,13 @@ struct TallyScreen: View {
                 todayHeader
 
                 if let session = activeSession {
-                    LiveSessionCard(session: session, venueName: venueName(for: session.venueID))
+                    // SPEC §1: the card opens SPEC §2's check-in picker — the
+                    // one picker, through the slot the `place` workstream fills.
+                    LiveSessionCard(
+                        session: session,
+                        venueName: venueName(for: session.venueID),
+                        onTap: { featureSlots.assignVenue(toSessionWith: session.id) }
+                    )
                 }
 
                 // SPEC §4: the recovery card decides for itself whether it

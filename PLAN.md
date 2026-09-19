@@ -96,6 +96,47 @@ Both depend on Wave 2 (`nudge`'s notification plumbing and Settings screen; `tre
 - §5: activity-insight notifications cap at one per week.
 - Full unit + XCUITest suites green; then the human QA checklist below runs on a physical device.
 
+## Wave 4 — Place follow-ups (1 agent, serial) — planned 2026-09-19
+
+Two gaps found in device use after Gate 3, both inside the `place` workstream. They share files (`CheckInPickerModel.swift`, `CheckInPickerSheet.swift`, `VenueAssignmentView.swift`), so one agent does both, search API first.
+
+**Gap A — a Session's venue can only be set from History.** The live Session card on the Tally tab (`LiveSessionCard`) is inert: after "Not now", a step-4 `coordinatesOnly` outcome, or a denied fix, the user has to find the Session under the today count to name the place. SPEC §1 now says the card is tappable and opens the check-in picker.
+
+**Gap B — venue search is weak.** `POISearching.search(_:near:)` is one unfiltered `MKLocalSearch` in a 20 km box, fired only on submit, uncancellable, and only from History. The check-in picker's field never reaches MapKit at all — it filters the 250 m nearby list and offers *Use "X"*, so a bar one street over that you can name is unfindable from the picker. SPEC §2 now specifies type-ahead, bar-first passes with widening, ranking, dedupe, and a distinct failure state.
+
+### Part 1 — Search API (`tally/Features/Place/`)
+
+1. `VenueSearchRequest` (Hashable, Sendable): `query`, `anchor: LocationFix?`, `radiusMeters` (default 5 000), `scope: Scope` (`.bars` = `POISearchService.categories`; `.anyPlace` = no filter).
+2. `VenueSearchPlan.passes(for:)` — pure: `[bars@radius, anyPlace@radius, anyPlace@50 km]` with an anchor; `[bars, anyPlace]` unbounded without one. The service runs passes in order and stops at the first non-empty result.
+3. `POISearching`: replace `search(_:near:)` with `func search(_ request: VenueSearchRequest) async throws -> [VenueCandidate]`. `nearbyVenues` unchanged. Throw on MapKit failure (a `VenueSearchError`) so callers can tell "nothing" from "broken". `MockPOISearchService` records every request, supports an injected delay and a thrown error, and answers from a per-query fixture map with a default.
+4. `VenueSearchRanking.rank(_:query:anchor:)` — pure: match tier (exact name, prefix, contains, other) → bar category before restaurant/other → distance → id. Also `merged(remote:nearby:saved:)`: drop a remote hit that `matches` a nearby row (nearby wins, it was measured from the live fix); a remote hit that matches a saved venue takes the saved name/identity via `CheckInPickerRanking.merging`.
+5. `VenueSearchModel` (`@MainActor @Observable`): `query` (set from the field), `results`, `state: .idle | .searching | .results | .empty | .unavailable`, injected `POISearching` and `anchor`. Debounce 300 ms with `Task.sleep`, cancel the previous task on every keystroke, generation counter so a late response never overwrites a newer one, queries under 2 characters clear and idle. Debounce interval injectable for tests.
+6. `CheckInPickerRanking.sections` gains `remote: [VenueCandidate]`; with a non-blank query the order is **Search results** (remote, ranked, deduped), **Nearby** (local filter), **Saved venues**. `typedNameCandidate` is matched against the union so a remote exact match suppresses *Use "X"*.
+7. `CheckInPickerList` and `VenueAssignmentView` both own a `VenueSearchModel`; the field drives `model.query`; the "Search results" section and the *Search unavailable* row come from `model.state`. `VenueAssignmentView` also gains the *Use "X"* row and switches its distances to `CheckInPickerFormatting`. `ReconciliationPromptView`, `RadarService`, `NotificationCopyTests` compile against the new protocol.
+
+### Part 2 — Venue from the live Session card
+
+1. `CheckInPickerRequest.Origin.session(SessionTarget)` where `SessionTarget: Hashable, Sendable` carries `sessionID`, `eventIDs`, `isMaterialized`, `anchor: LocationFix?` (first located event, reuse `VenueAssignmentView.anchor(for:)`). `CheckInPickerRequest(session:)` uses `session.id` as the request id (one picker per outing), `anchor` as the initial fix, no seeds, no suggestion. `sessionID` returns the target's id; `isFromNotification` is false for this origin.
+2. `PlaceCoordinator.presentPicker(forSessionWith id: UUID)` derives the Session, builds the request, clears any `pendingCheckIn` for the same Session, sets `pendingPicker`. `resolvePicker` for `.session`: `VenueWriter.resolveVenue`, `VenueWriter.tag(eventIDs:)`, repoint the materialized `Session` record when `isMaterialized` (mirror `HistoryModel.assignVenue`), `memory.recordConfirmation`. `dismissPicker` for `.session` records nothing — it was the user's own tap, not a prompt. `suppressRow` stays hidden for this origin (the fix may be hours old; suppression is about *here*).
+3. `FeatureSlots.assignVenue(toSessionWith id: UUID)` with a no-op default; `PlaceFeatureSlots` forwards to the coordinator. `TallyScreen` passes `onTap: { featureSlots.assignVenue(toSessionWith: session.id) }` to `LiveSessionCard`; the card becomes a `Button` (plain style), a11y trait `.isButton`, hint "Assign a venue"; untagged headline becomes "Session in progress · tap to add where". The picker is presented by the existing `.checkInPicker()` host on the reconciliation modifier at the root — verify that host is attached above the tab shell, and attach `.checkInPicker()` to `RootTabView` if it is not.
+4. The header title reads "Where are you?" for `.session` when the Session is still active, "Where was this?" otherwise.
+
+### Tests (`tallyTests/Place/`, Swift Testing, no MapKit)
+
+- `VenueSearchTests`: pass planning; ranking tiers; bar-before-restaurant at equal tier; nearer-first; dedupe against nearby and saved; `merged` keeps the saved name.
+- `VenueSearchModelTests`: rapid `query` mutations produce one request (debounce injected to ~10 ms); a slow older response does not overwrite a newer result; clearing the query resets to `.idle`; a thrown error yields `.unavailable`; a one-character query never searches.
+- `CheckInPickerTests`: sections ordering with `remote`; a remote exact match suppresses *Use "X"*; `CheckInPickerRequest(session:)` id/fix/`sessionID`/`isFromNotification`.
+- `PlaceCoordinatorSessionTests` on `TallyStore.makeInMemoryContainer()`: resolving a `.session` picker tags every event and repoints a materialized record; dismissing records no `CheckInMemory` dismissal; presenting for a Session with an outstanding prompt clears that prompt.
+- UI (`TallyUITests`): after logging a drink, tapping `tally.sessionCard` shows `checkIn.picker.root`; "Not now" returns to the counter with the card still present.
+
+### Acceptance
+
+- Type "bowl" in the picker near a bowling alley with no bar of that name: the alley appears under **Search results** with its distance; the *Use "bowl"* row is still offered.
+- Type three characters quickly: `MockPOISearchService` saw one request.
+- Airplane mode: the picker shows *Search unavailable*, not *No match*.
+- Log a drink, dismiss the check-in sheet, tap the live card, pick a venue: the card headline shows the venue, History shows it on the Session, and no second check-in prompt appears for that Session.
+- Whole suite green: TallyKit, app unit tests, UI tests. `xcodebuild build` clean for every target.
+
 ## What agents cannot verify — human QA checklist
 
 Simulators can't exercise these; they need a device pass after Gate 3:

@@ -85,6 +85,15 @@ protocol FeatureSlots {
     /// Call `onDone` when the pin is saved *or* skipped — the flow finishes
     /// either way.
     func onboardingHomeSetup(onDone: @escaping () -> Void) -> AnyView
+
+    /// SPEC §1: "Tapping the card opens the check-in picker (§2) to assign — or
+    /// change — the Session's venue: the one picker, not a second UI."
+    ///
+    /// Returns nothing and presents nothing here: the implementation publishes
+    /// a request and the picker's own app-wide host puts it on screen, which is
+    /// what keeps "the one picker" true no matter where the tap came from.
+    /// The default does nothing, so the unwired shell's card is simply inert.
+    func assignVenue(toSessionWith id: UUID)
 }
 
 extension FeatureSlots {
@@ -98,6 +107,8 @@ extension FeatureSlots {
     func onboardingHomeSetup(onDone: @escaping () -> Void) -> AnyView {
         AnyView(HomeSetupPlaceholderView(onDone: onDone))
     }
+
+    func assignVenue(toSessionWith id: UUID) {}
 }
 
 /// The unwired shell: every slot takes its default. What the app runs on until

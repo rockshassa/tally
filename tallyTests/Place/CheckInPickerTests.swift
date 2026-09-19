@@ -527,3 +527,211 @@ struct CheckInPickerRequestTests {
         }
     }
 }
+
+// MARK: - Remote search results
+
+/// SPEC §2's venue search, where the picker draws it: a third section above the
+/// two local ones, deduped against both.
+@Suite("Check-in picker — search results section")
+struct CheckInPickerRemoteSectionTests {
+
+    private var poi: [VenueCandidate] {
+        [Fixture.poi("The Anchor", distance: 40, mapItemID: "poi.anchor")]
+    }
+
+    private func remote(_ name: String, distance: CLLocationDistance = 1_200) -> VenueCandidate {
+        Fixture.poi(name, distance: distance, mapItemID: "remote.\(name.lowercased())")
+    }
+
+    @Test("Search results lead, then nearby, then saved venues")
+    func sectionOrder() {
+        let sections = CheckInPickerRanking.sections(
+            poi: poi,
+            savedVenues: [Fixture.saved("Anchor Yard", offsetMeters: 200)],
+            fix: Fixture.fix,
+            query: "anchor",
+            remote: [remote("Anchor & Hope")]
+        )
+
+        #expect(sections.map(\.kind) == [.remote, .nearby, .saved])
+        #expect(sections[0].title == "Search results")
+        #expect(names(sections) == ["Anchor & Hope", "The Anchor", "Anchor Yard"])
+    }
+
+    @Test("A blank field has no search results, whatever is in hand")
+    func blankQueryDropsRemote() {
+        let sections = CheckInPickerRanking.sections(
+            poi: poi,
+            savedVenues: [],
+            fix: Fixture.fix,
+            query: "   ",
+            remote: [remote("Anchor & Hope")]
+        )
+
+        #expect(sections.map(\.kind) == [.nearby])
+    }
+
+    @Test("A remote hit that is already a nearby row is not drawn twice")
+    func dedupesAgainstNearby() {
+        let sections = CheckInPickerRanking.sections(
+            poi: poi,
+            savedVenues: [],
+            fix: Fixture.fix,
+            query: "anchor",
+            remote: [Fixture.poi("The Anchor", distance: 3_000, mapItemID: "poi.anchor")]
+        )
+
+        #expect(sections.map(\.kind) == [.nearby])
+        // The nearby row keeps its own distance — it was measured from the fix.
+        #expect(CheckInPickerRanking.rows(in: sections).map(\.distanceMeters) == [40])
+    }
+
+    @Test("A remote hit that is a saved venue out of range takes the saved identity")
+    func mergesRemoteWithSaved() {
+        let savedID = UUID()
+        let sections = CheckInPickerRanking.sections(
+            poi: [],
+            savedVenues: [Fixture.saved("Ours", offsetMeters: 4_000, mapItemID: "remote.anchor", id: savedID)],
+            fix: Fixture.fix,
+            query: "anchor",
+            remote: [Fixture.poi("The Anchor", distance: 4_000, mapItemID: "remote.anchor")]
+        )
+
+        let rows = CheckInPickerRanking.rows(in: sections)
+        #expect(rows.count == 1)
+        #expect(rows[0].name == "Ours")
+        #expect(rows[0].existingVenueID == savedID)
+    }
+
+    @Test("A remote exact match suppresses *Use \"X\"* — that row is the answer")
+    func remoteExactMatchSuppressesTypedName() {
+        let sections = CheckInPickerRanking.sections(
+            poi: [],
+            savedVenues: [],
+            fix: Fixture.fix,
+            query: "Ye Olde Pub",
+            remote: [remote("Ye Olde Pub")]
+        )
+
+        let rows = CheckInPickerRanking.rows(in: sections)
+        #expect(rows.map(\.name) == ["Ye Olde Pub"])
+        #expect(CheckInPickerRanking.typedNameCandidate(for: "Ye Olde Pub", matching: rows, fix: Fixture.fix) == nil)
+    }
+
+    @Test("A near miss in the search results still leaves *Use \"X\"* on offer")
+    func fuzzyRemoteMatchKeepsTypedName() {
+        let sections = CheckInPickerRanking.sections(
+            poi: [],
+            savedVenues: [],
+            fix: Fixture.fix,
+            query: "Ye Olde Pub",
+            remote: [remote("Ye Olde Pub House")]
+        )
+
+        let rows = CheckInPickerRanking.rows(in: sections)
+        #expect(
+            CheckInPickerRanking.typedNameCandidate(for: "Ye Olde Pub", matching: rows, fix: Fixture.fix) != nil
+        )
+    }
+}
+
+// MARK: - The live Session card's picker
+
+/// SPEC §1: "Tapping the card opens the check-in picker (§2) to assign — or
+/// change — the Session's venue: the one picker, not a second UI."
+@Suite("Check-in picker — from the live Session card")
+struct CheckInPickerSessionOriginTests {
+
+    private func target(
+        isMaterialized: Bool = false,
+        anchor: LocationFix? = Fixture.fix,
+        closesAt: Date? = nil
+    ) -> SessionTarget {
+        SessionTarget(
+            sessionID: UUID(),
+            eventIDs: [UUID(), UUID()],
+            isMaterialized: isMaterialized,
+            anchor: anchor,
+            closesAt: closesAt
+        )
+    }
+
+    @Test("Keyed by the Session, anchored on it, with nothing inferred")
+    func fromSession() {
+        let target = target()
+        let request = CheckInPickerRequest(session: target)
+
+        #expect(request.id == target.sessionID)
+        #expect(request.sessionID == target.sessionID)
+        #expect(request.sessionTarget == target)
+        #expect(request.fix == Fixture.fix)
+        // Nobody guessed anything here — the user asked.
+        #expect(request.suggestion == nil)
+        #expect(request.seeds.isEmpty)
+        #expect(request.prompt == nil)
+    }
+
+    @Test("It is not a notification tap-through, and must never be mistaken for one")
+    func isNotFromNotification() {
+        #expect(!CheckInPickerRequest(session: target()).isFromNotification)
+        #expect(CheckInPickerRequest.notification().isFromNotification)
+    }
+
+    @Test("*Not a bar / don't ask here* is not offered — the fix may be hours old")
+    func hidesSuppression() {
+        #expect(!CheckInPickerRequest(session: target()).offersSuppression)
+        #expect(CheckInPickerRequest.notification().offersSuppression)
+    }
+
+    @Test("A Session with no located event opens the picker anyway, locating itself")
+    func withoutAnAnchor() {
+        let request = CheckInPickerRequest(session: target(anchor: nil))
+        #expect(request.fix == nil)
+    }
+
+    @Test("The question follows the night: 'Where are you?' until the Session closes")
+    func title() {
+        let now = Date(timeIntervalSince1970: 1_700_000_000)
+
+        let live = CheckInPickerRequest(session: target(closesAt: now.addingTimeInterval(3_600)))
+        #expect(live.title(asOf: now) == "Where are you?")
+
+        let over = CheckInPickerRequest(session: target(closesAt: now.addingTimeInterval(-60)))
+        #expect(over.title(asOf: now) == "Where was this?")
+
+        // Every other origin asks where you are.
+        #expect(CheckInPickerRequest.notification().title(asOf: now) == "Where are you?")
+    }
+
+    @Test("The target reads a derived Session, anchor and materialization included")
+    func fromDerivedSession() {
+        let located = DrinkEventSnapshot(
+            type: .alcoholic,
+            timestamp: Date(timeIntervalSince1970: 1_700_000_000),
+            latitude: Fixture.latitude,
+            longitude: Fixture.longitude,
+            horizontalAccuracy: 12
+        )
+        let later = DrinkEventSnapshot(
+            type: .alcoholic,
+            timestamp: Date(timeIntervalSince1970: 1_700_003_600)
+        )
+        let session = DerivedSession(
+            id: UUID(),
+            startedAt: located.timestamp,
+            endedAt: later.timestamp,
+            closesAt: later.timestamp.addingTimeInterval(3 * 60 * 60),
+            venueID: nil,
+            events: [located, later],
+            isMaterialized: true
+        )
+
+        let target = SessionTarget(session: session)
+
+        #expect(target.sessionID == session.id)
+        #expect(target.eventIDs == [located.id, later.id])
+        #expect(target.isMaterialized)
+        #expect(target.anchor?.latitude == Fixture.latitude)
+        #expect(target.closesAt == session.closesAt)
+    }
+}

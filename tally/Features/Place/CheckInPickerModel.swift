@@ -34,6 +34,15 @@ nonisolated public struct CheckInPickerRequest: Identifiable, Hashable, Sendable
         /// Tapping a Bar Radar notification body. There may be no Session at all
         /// yet: nothing has necessarily been logged.
         case notification
+
+        /// SPEC §1: "Tapping the card opens the check-in picker (§2) to
+        /// assign — or change — the Session's venue: the one picker, not a
+        /// second UI."
+        ///
+        /// Nobody asked a question here, so there is nothing to answer: backing
+        /// out records no dismissal, and *Not a bar / don't ask here* is not
+        /// offered — the fix can be hours old, and suppression is about *here*.
+        case session(SessionTarget)
     }
 
     public let id: UUID
@@ -76,6 +85,20 @@ nonisolated public struct CheckInPickerRequest: Identifiable, Hashable, Sendable
         )
     }
 
+    /// SPEC §1's live Session card. Keyed by the Session for the same reason
+    /// the check-in prompt is: one picker per outing, never one per drink.
+    ///
+    /// No suggestion and no seeds — nothing inferred anything here, the user
+    /// simply asked. The list fills from the Session's own anchor and from
+    /// whatever the picker's one-shot fix turns up.
+    public init(session: SessionTarget) {
+        self.init(
+            id: session.id,
+            origin: .session(session),
+            fix: session.anchor
+        )
+    }
+
     /// SPEC §2: the Bar Radar tap-through, which knows only which venue the
     /// notification named — if it named one at all.
     public static func notification(
@@ -95,12 +118,105 @@ nonisolated public struct CheckInPickerRequest: Identifiable, Hashable, Sendable
         return nil
     }
 
+    /// The Session the live-card origin names, with the events a pick tags.
+    public var sessionTarget: SessionTarget? {
+        if case .session(let target) = origin { return target }
+        return nil
+    }
+
     /// The Session a pick would tag, when the origin knows one. The
     /// notification path resolves its Session at pick time instead — hours can
     /// pass between the banner and the tap.
-    public var sessionID: UUID? { prompt?.sessionID }
+    public var sessionID: UUID? {
+        switch origin {
+        case .checkIn(let prompt): prompt.sessionID
+        case .session(let target): target.sessionID
+        case .notification: nil
+        }
+    }
 
-    public var isFromNotification: Bool { prompt == nil }
+    public var isFromNotification: Bool {
+        if case .notification = origin { return true }
+        return false
+    }
+
+    /// *Not a bar / don't ask here* writes a `SuppressedPlace` at the fix you
+    /// are standing on. The live card can be tapped hours later, so the row is
+    /// not offered there — suppressing the wrong spot is worse than not
+    /// offering the row.
+    public var offersSuppression: Bool { sessionTarget == nil }
+
+    /// SPEC §1/§2: the same picker asks a different question depending on
+    /// whether the night is still happening.
+    public func title(asOf now: Date = Date()) -> String {
+        guard let target = sessionTarget, !target.isActive(asOf: now) else { return "Where are you?" }
+        return "Where was this?"
+    }
+}
+
+// MARK: - Session target
+
+/// The Session a live-card pick writes to (SPEC §1).
+///
+/// A value, not a `DerivedSession`: the picker is a sheet that can outlive the
+/// derivation that opened it, and all it needs is which events to tag, whether
+/// a materialized record has to be repointed with them, and where the outing
+/// happened.
+nonisolated public struct SessionTarget: Identifiable, Hashable, Sendable {
+
+    public let sessionID: UUID
+
+    /// Every event in the outing — SPEC §2: "Subsequent drinks within the same
+    /// Session auto-tag silently", which applies just as much backwards.
+    public let eventIDs: [UUID]
+
+    /// A materialized record owns the Session's identity (SPEC §2), so its
+    /// venue has to be repointed alongside the events.
+    public let isMaterialized: Bool
+
+    /// Where the drinks were logged — the first event that carries coordinates.
+    /// `nil` for a Session logged from the widget or the watch (SPEC §6, §7).
+    public let anchor: LocationFix?
+
+    /// When the Session stops accepting drinks, if it is known. Decides the
+    /// picker's question: "Where are you?" while the night is still running,
+    /// "Where was this?" afterwards.
+    public let closesAt: Date?
+
+    public var id: UUID { sessionID }
+
+    public init(
+        sessionID: UUID,
+        eventIDs: [UUID],
+        isMaterialized: Bool = false,
+        anchor: LocationFix? = nil,
+        closesAt: Date? = nil
+    ) {
+        self.sessionID = sessionID
+        self.eventIDs = eventIDs
+        self.isMaterialized = isMaterialized
+        self.anchor = anchor
+        self.closesAt = closesAt
+    }
+
+    /// The anchor is `VenueAssignmentView.anchor(for:)` — the same "first event
+    /// that carries coordinates" History has always used.
+    public init(session: DerivedSession) {
+        self.init(
+            sessionID: session.id,
+            eventIDs: session.eventIDs,
+            isMaterialized: session.isMaterialized,
+            anchor: VenueAssignmentView.anchor(for: session.events),
+            closesAt: session.closesAt
+        )
+    }
+
+    /// Unknown reads as active: the live card is the only thing that opens this
+    /// picker, and it is only on screen while the Session is.
+    public func isActive(asOf now: Date = Date()) -> Bool {
+        guard let closesAt else { return true }
+        return now < closesAt
+    }
 }
 
 // MARK: - Ranking
@@ -122,11 +238,12 @@ nonisolated public enum CheckInPickerRanking {
 
     // MARK: Sections
 
-    /// SPEC §2's two groups: what MapKit found near you, then the venues you
-    /// already saved that it didn't return.
+    /// SPEC §2's groups: what the search field turned up, what MapKit found
+    /// near you, then the venues you already saved that neither returned.
     public struct Section: Identifiable, Hashable, Sendable {
 
         public enum Kind: String, Hashable, Sendable {
+            case remote
             case nearby
             case saved
         }
@@ -138,6 +255,7 @@ nonisolated public enum CheckInPickerRanking {
 
         public var title: String {
             switch kind {
+            case .remote: "Search results"
             case .nearby: "Nearby"
             case .saved: "Saved venues"
             }
@@ -159,13 +277,18 @@ nonisolated public enum CheckInPickerRanking {
     ///     offering the one answer the pipeline never needs.
     ///   - fix: the current fix. `nil` leaves distances unknown and keeps
     ///     saved venues in the list rather than range-filtering on nothing.
-    ///   - query: the search field's contents; filters both sections by name.
+    ///   - query: the search field's contents; filters both local sections by
+    ///     name.
+    ///   - remote: what SPEC §2's venue search returned for `query`, already
+    ///     ranked by `VenueSearchRanking`. Ignored while the field is blank —
+    ///     search results are an answer to a question nobody has asked yet.
     public static func sections(
         poi: [VenueCandidate],
         savedVenues: [VenueSnapshot],
         fix: LocationFix?,
         withinMeters: CLLocationDistance = radiusMeters,
-        query: String = ""
+        query: String = "",
+        remote: [VenueCandidate] = []
     ) -> [Section] {
 
         let saved = savedVenues.filter { !$0.category.isHome }
@@ -179,7 +302,14 @@ nonisolated public enum CheckInPickerRanking {
         )
         .sorted(by: VenueCandidate.isOrderedBefore)
 
+        // What is already on screen wins every collision: those rows were
+        // measured from the live fix, and one venue is one row (SPEC §1).
+        let found = query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            ? []
+            : VenueSearchRanking.merged(remote: remote, nearby: nearby + remaining, saved: saved)
+
         return [
+            Section(kind: .remote, candidates: found),
             Section(kind: .nearby, candidates: nearby),
             Section(kind: .saved, candidates: remaining)
         ]

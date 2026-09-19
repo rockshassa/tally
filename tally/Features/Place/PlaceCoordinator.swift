@@ -289,6 +289,29 @@ public final class PlaceCoordinator {
         return true
     }
 
+    /// SPEC §1: "Tapping the card opens the check-in picker (§2) to assign — or
+    /// change — the Session's venue."
+    ///
+    /// The Session is re-derived here rather than carried in from the view: the
+    /// card is a live surface and the tap can land a drink later than the
+    /// render that drew it.
+    ///
+    /// An outstanding check-in prompt for the same Session is dropped on the
+    /// way — the user is already answering that question, and two sheets over
+    /// one outing would be one too many (the same rule
+    /// `presentPickerForCurrentFix` follows).
+    public func presentPicker(forSessionWith id: UUID) {
+
+        guard
+            let sessions = try? deriver.derive(in: modelContext),
+            let session = sessions.first(where: { $0.id == id })
+        else { return }
+
+        if pendingCheckIn?.sessionID == id { pendingCheckIn = nil }
+
+        present(CheckInPickerRequest(session: SessionTarget(session: session)))
+    }
+
     private func present(_ request: CheckInPickerRequest) {
         pendingPicker = request
     }
@@ -309,6 +332,26 @@ public final class PlaceCoordinator {
             return lastResolvedVenueID
         }
 
+        // SPEC §1's live card: the Session is known, every one of its drinks is
+        // tagged, and a materialized record is repointed with them — the same
+        // write `HistoryModel.assignVenue` makes, because it is the same edit.
+        if let target = request.sessionTarget {
+            guard let venue = try? VenueWriter.resolveVenue(for: candidate, in: modelContext) else { return nil }
+
+            try? VenueWriter.tag(eventIDs: target.eventIDs, with: venue, in: modelContext)
+
+            if target.isMaterialized,
+               let record = try? EventStore.session(id: target.sessionID, in: modelContext) {
+                record.venue = venue
+                try? modelContext.save()
+            }
+
+            // Later drinks in the outing auto-tag silently (SPEC §2).
+            memory.recordConfirmation(venueID: venue.id, for: target.sessionID)
+            lastResolvedVenueID = venue.id
+            return venue.id
+        }
+
         guard let venue = try? VenueWriter.resolveVenue(for: candidate, in: modelContext) else { return nil }
 
         if let session = activeSession() {
@@ -323,11 +366,17 @@ public final class PlaceCoordinator {
     /// Backing out of the picker. From a check-in origin that is the prompt's
     /// "Not now": SPEC §2's "dismissing tags nothing and doesn't re-prompt this
     /// Session". From a notification there is nothing to remember.
+    ///
+    /// From the live Session card there is nothing to remember either, and for
+    /// a stronger reason: nobody asked. Recording a dismissal would let a tap
+    /// the user made *themselves* silence the check-in prompt for the rest of
+    /// the outing.
     public func dismissPicker(_ request: CheckInPickerRequest? = nil) {
         guard let target = request ?? pendingPicker else { return }
         pendingPicker = nil
-        if let prompt = target.prompt {
-            memory.recordDismissal(for: prompt.sessionID)
+        switch target.origin {
+        case .checkIn(let prompt): memory.recordDismissal(for: prompt.sessionID)
+        case .session, .notification: break
         }
     }
 

@@ -107,7 +107,11 @@ struct CheckInPickerList: View {
 
     @State private var fix: LocationFix?
     @State private var candidates: [VenueCandidate]
-    @State private var query = ""
+
+    /// SPEC §2's "as you type" search. The field writes to `search.query` and
+    /// reads everything else back out of it.
+    @State private var search: VenueSearchModel
+
     @State private var isLocating = false
     @State private var isSearching = false
     @State private var resolvedLocation: (any LocationFixProviding)?
@@ -135,6 +139,9 @@ struct CheckInPickerList: View {
         self.onBack = onBack
         _fix = State(initialValue: request.fix)
         _candidates = State(initialValue: request.seeds)
+        // `nil` here is the same lazy resolution the POI lookup uses: the model
+        // makes its own service the first time somebody actually types.
+        _search = State(initialValue: VenueSearchModel(service: poiSearch, anchor: request.fix))
     }
 
     // MARK: Body
@@ -147,6 +154,7 @@ struct CheckInPickerList: View {
         }
         .accessibilityIdentifier(CheckInPickerA11y.root)
         .task { await refresh() }
+        .onDisappear { search.cancel() }
         .onChange(of: scenePhase) { _, phase in
             // A fresh fix on re-activation, and nothing while the picker is in
             // the background: SPEC §2 is one-shot only, never a stream.
@@ -166,7 +174,7 @@ struct CheckInPickerList: View {
                 .buttonStyle(.plain)
             }
 
-            Text("Where are you?")
+            Text(request.title())
                 .font(.system(size: 22, weight: .semibold, design: .serif))
                 .foregroundStyle(PlacePalette.ink)
                 .lineLimit(1)
@@ -190,16 +198,16 @@ struct CheckInPickerList: View {
                 .font(.system(size: 13))
                 .foregroundStyle(PlacePalette.ink3)
 
-            TextField("Search or name this place", text: $query)
+            TextField("Search or name this place", text: $search.query)
                 .font(.system(size: 15))
                 .foregroundStyle(PlacePalette.ink)
                 .submitLabel(.done)
                 .autocorrectionDisabled()
                 .accessibilityIdentifier(CheckInPickerA11y.search)
 
-            if !query.isEmpty {
+            if !search.query.isEmpty {
                 Button {
-                    query = ""
+                    search.clear()
                 } label: {
                     Image(systemName: "xmark.circle.fill")
                         .font(.system(size: 14))
@@ -229,13 +237,21 @@ struct CheckInPickerList: View {
                     useTypedNameRow(typed)
                 }
 
-                if isLocating || isSearching {
+                // SPEC §2: "A failed lookup reads as *Search unavailable*,
+                // never as *No match*."
+                if search.state == .unavailable {
+                    searchUnavailableRow
+                }
+
+                if isLocating || isSearching || search.state == .searching {
                     progressRow
-                } else if rows.isEmpty && typedNameCandidate == nil {
+                } else if rows.isEmpty && typedNameCandidate == nil && search.state != .unavailable {
                     emptyRow
                 }
 
-                suppressRow
+                if request.offersSuppression {
+                    suppressRow
+                }
             }
             .padding(.horizontal, 20)
             .padding(.top, 14)
@@ -317,18 +333,39 @@ struct CheckInPickerList: View {
     private var progressRow: some View {
         HStack(spacing: 8) {
             ProgressView().controlSize(.small)
-            Text(isLocating ? "Locating…" : "Looking around…")
+            Text(progressLabel)
                 .font(.system(size: 13))
                 .foregroundStyle(PlacePalette.ink3)
         }
         .padding(.vertical, 12)
     }
 
+    private var progressLabel: String {
+        if isLocating { return "Locating…" }
+        if search.state == .searching { return "Searching…" }
+        return "Looking around…"
+    }
+
     private var emptyRow: some View {
-        Text(query.isEmpty ? "Nothing nearby." : "No match — type a name to save this place.")
+        Text(search.query.isEmpty ? "Nothing nearby." : "No match — type a name to save this place.")
             .font(.system(size: 13))
             .foregroundStyle(PlacePalette.ink3)
             .padding(.vertical, 12)
+    }
+
+    /// SPEC §2: the distinct failure state. "No match" would be a lie — MapKit
+    /// never got to look.
+    private var searchUnavailableRow: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "wifi.exclamationmark")
+                .font(.system(size: 13))
+                .foregroundStyle(PlacePalette.ink3)
+            Text("Search unavailable")
+                .font(.system(size: 13))
+                .foregroundStyle(PlacePalette.ink3)
+        }
+        .padding(.vertical, 12)
+        .accessibilityIdentifier(CheckInPickerA11y.searchUnavailable)
     }
 
     private func sectionHeader(_ text: String) -> some View {
@@ -348,7 +385,8 @@ struct CheckInPickerList: View {
             poi: candidates,
             savedVenues: savedVenues,
             fix: fix,
-            query: query
+            query: search.query,
+            remote: search.results
         )
     }
 
@@ -356,8 +394,11 @@ struct CheckInPickerList: View {
         CheckInPickerRanking.rows(in: sections)
     }
 
+    /// Matched against every row on screen, search results included — SPEC §2's
+    /// "when the typed name isn't on screen". A remote exact match *is* on
+    /// screen, so it suppresses the offer to create a second venue by that name.
     private var typedNameCandidate: VenueCandidate? {
-        CheckInPickerRanking.typedNameCandidate(for: query, matching: rows, fix: fix)
+        CheckInPickerRanking.typedNameCandidate(for: search.query, matching: rows, fix: fix)
     }
 
     /// The flat position of a row, which is what `checkIn.picker.row.<index>`
@@ -379,6 +420,8 @@ struct CheckInPickerList: View {
         if let fresh = await locationProvider().oneShotFix() {
             fix = fresh
             candidates = CheckInPickerRanking.remeasured(candidates, against: fresh)
+            // Search results are anchored to the fix too (SPEC §2).
+            search.anchor = fresh
         }
         isLocating = false
 
@@ -483,6 +526,7 @@ enum CheckInPickerA11y {
 
     static let root = "checkIn.picker"
     static let search = "checkIn.picker.search"
+    static let searchUnavailable = "checkIn.picker.searchUnavailable"
     static let suppress = "checkIn.picker.suppress"
     static let useTypedName = "checkIn.picker.useTypedName"
 

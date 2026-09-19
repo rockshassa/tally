@@ -40,6 +40,12 @@ final class PlaceFeatureSlots: FeatureSlots {
     func onboardingHomeSetup(onDone: @escaping () -> Void) -> AnyView {
         AnyView(HomeSetupView(onSave: { _ in onDone() }, onSkip: { onDone() }))
     }
+
+    /// SPEC §1: the live Session card's tap. The coordinator publishes the
+    /// request; the `.checkInPicker()` host at the app's root presents it.
+    func assignVenue(toSessionWith id: UUID) {
+        coordinator.presentPicker(forSessionWith: id)
+    }
 }
 
 /// The slot contract (`FeatureSlots.checkInSheet`) says the returned view

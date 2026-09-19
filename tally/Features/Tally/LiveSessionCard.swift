@@ -17,10 +17,31 @@ struct LiveSessionCard: View {
     /// happens (SPEC §2 step 4: coordinates only, assign a venue later).
     let venueName: String?
 
+    /// SPEC §1: "Tapping the card opens the check-in picker (§2) to assign — or
+    /// change — the Session's venue."
+    ///
+    /// Optional so previews and any host without the `place` slots still draw a
+    /// card — an inert one, which is what it was before this existed, and which
+    /// is why the headline only promises a tap when there is one to make.
+    var onTap: (() -> Void)?
+
     var body: some View {
         TimelineView(.periodic(from: .now, by: 1)) { context in
             if session.isActive(asOf: context.date) {
-                card(now: context.date)
+                if let onTap {
+                    Button(action: onTap) {
+                        card(now: context.date)
+                    }
+                    .buttonStyle(.plain)
+                    .modifier(
+                        SessionCardAccessibility(label: label(now: context.date), isButton: true)
+                    )
+                } else {
+                    card(now: context.date)
+                        .modifier(
+                            SessionCardAccessibility(label: label(now: context.date), isButton: false)
+                        )
+                }
             }
         }
     }
@@ -44,15 +65,21 @@ struct LiveSessionCard: View {
         .padding(.horizontal, 16)
         .padding(.vertical, 14)
         .tallyGlassCard(strong: true)
-        .accessibilityIdentifier(A11y.Tally.sessionCard)
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel("\(headline). \(detail(now: now))")
+        .contentShape(Rectangle())
         .transition(.opacity.combined(with: .move(edge: .top)))
     }
 
+    private func label(now: Date) -> String {
+        "\(headline). \(detail(now: now))"
+    }
+
+    /// SPEC §1: "An untagged card says so ('Session in progress · tap to add
+    /// where')" — but only where there is something to tap.
     private var headline: String {
         if let venueName, !venueName.isEmpty {
             "Session · \(venueName)"
+        } else if onTap != nil {
+            "Session in progress · tap to add where"
         } else {
             "Session in progress"
         }
@@ -82,6 +109,30 @@ struct LiveSessionCard: View {
         let hours = totalMinutes / 60
         let minutes = totalMinutes % 60
         return hours > 0 ? "\(hours) h \(minutes) m" : "\(minutes) m"
+    }
+}
+
+/// One accessibility element, whether or not the card is a button.
+///
+/// The identifier lands on whatever the user actually touches — the `Button`
+/// when there is one — because `tally.sessionCard` is what the XCUITest suite
+/// taps (PLAN Gate 1: these strings are API).
+private struct SessionCardAccessibility: ViewModifier {
+
+    let label: String
+
+    /// SPEC §1's tap. The trait and the hint are stated rather than inherited,
+    /// because collapsing the card into one element is what makes the two lines
+    /// readable — and it would otherwise take the button-ness with it.
+    let isButton: Bool
+
+    func body(content: Content) -> some View {
+        content
+            .accessibilityElement(children: .ignore)
+            .accessibilityIdentifier(A11y.Tally.sessionCard)
+            .accessibilityLabel(label)
+            .accessibilityAddTraits(isButton ? [.isButton] : [])
+            .accessibilityHint(isButton ? "Assign a venue" : "")
     }
 }
 

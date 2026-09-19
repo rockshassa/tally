@@ -12,8 +12,12 @@ public protocol POISearching: AnyObject {
     /// nightlife/brewery/restaurant/cafe categories, nearest first.
     func nearbyVenues(around fix: LocationFix, radiusMeters: CLLocationDistance) async -> [VenueCandidate]
 
-    /// Free-text search, used by History's manual venue assignment.
-    func search(_ query: String, near coordinate: CLLocationCoordinate2D?) async -> [VenueCandidate]
+    /// SPEC §2's venue search: the passes `VenueSearchPlan` describes, run in
+    /// order, stopping at the first one that finds anything.
+    ///
+    /// Throws rather than returning `[]` on a MapKit failure, because the field
+    /// has to tell *Search unavailable* from *No match* (SPEC §2).
+    func search(_ request: VenueSearchRequest) async throws -> [VenueCandidate]
 }
 
 // MARK: - Live implementation
@@ -53,30 +57,56 @@ public final class POISearchService: POISearching {
         return Self.candidates(from: response.mapItems, fix: fix)
     }
 
-    public func search(_ query: String, near coordinate: CLLocationCoordinate2D?) async -> [VenueCandidate] {
+    /// SPEC §2: "tried bar-first …, and **widened** — any place, then a wider
+    /// region — only when the narrower pass finds nothing, so 'bowling alley'
+    /// still works."
+    ///
+    /// The widening is why this is a loop and not one lookup: a bar called
+    /// *Bowl* must beat the bowling alley, and the bowling alley must still be
+    /// reachable when no bar answers to the name.
+    public func search(_ request: VenueSearchRequest) async throws -> [VenueCandidate] {
 
-        let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return [] }
+        guard !request.trimmedQuery.isEmpty else { return [] }
+
+        for pass in VenueSearchPlan.passes(for: request) {
+            let found = try await run(pass)
+            if !found.isEmpty { return found }
+        }
+        return []
+    }
+
+    /// One `MKLocalSearch`. The only place in this file that can throw.
+    private func run(_ pass: VenueSearchRequest) async throws -> [VenueCandidate] {
 
         let request = MKLocalSearch.Request()
-        request.naturalLanguageQuery = trimmed
+        request.naturalLanguageQuery = pass.trimmedQuery
         request.resultTypes = [.pointOfInterest]
-        if let coordinate {
+
+        if pass.scope == .bars {
+            request.pointOfInterestFilter = MKPointOfInterestFilter(including: Self.categories)
+        }
+        if let anchor = pass.anchor {
+            // `radiusMeters` is a radius; the region takes a span, so the box
+            // reaches that far in every direction.
             request.region = MKCoordinateRegion(
-                center: coordinate,
-                latitudinalMeters: 20_000,
-                longitudinalMeters: 20_000
+                center: anchor.coordinate,
+                latitudinalMeters: pass.radiusMeters * 2,
+                longitudinalMeters: pass.radiusMeters * 2
             )
         }
 
-        guard let response = try? await MKLocalSearch(request: request).start() else { return [] }
-
-        let fix = coordinate.map {
-            LocationFix(latitude: $0.latitude, longitude: $0.longitude, horizontalAccuracy: 0)
+        do {
+            let response = try await MKLocalSearch(request: request).start()
+            // The category filter is MapKit's job on the `.bars` pass and
+            // nobody's on the others — if you say you were at a bowling alley,
+            // you were at a bowling alley.
+            return Self.candidates(from: response.mapItems, fix: pass.anchor, filterToCategories: false)
+        } catch let error as MKError where error.code == .placemarkNotFound {
+            // "Nothing there" is an answer, not a failure: the next pass widens.
+            return []
+        } catch {
+            throw VenueSearchError.lookupFailed(String(describing: error))
         }
-        // Manual search is deliberately unfiltered by category — if you say you
-        // were at a bowling alley, you were at a bowling alley.
-        return Self.candidates(from: response.mapItems, fix: fix, filterToCategories: false)
     }
 
     // MARK: Mapping
@@ -166,17 +196,47 @@ extension MKPointOfInterestCategory {
 // MARK: - Mock
 
 /// Fixture-driven `POISearching` for previews and the Gate 1 acceptance items.
+///
+/// The search side records every request it is handed, which is how the Wave 4
+/// acceptance item *"type three characters quickly: the service saw one
+/// request"* is checked without a network, a simulator, or a clock.
 @MainActor
 public final class MockPOISearchService: POISearching {
 
     public var nearbyResults: [VenueCandidate]
+
+    /// The answer for any query without a `resultsByQuery` entry.
     public var searchResults: [VenueCandidate]
+
+    /// Per-query fixtures, keyed by the trimmed, lowercased query.
+    public var resultsByQuery: [String: [VenueCandidate]] = [:]
+
+    /// Held before answering. Read when the call starts, so each in-flight
+    /// request keeps the delay it was launched with.
+    public var searchDelay: Duration = .zero
+
+    /// Per-query delays, for "a slow older response must not overwrite a newer
+    /// one" — the one race that needs two different speeds at once.
+    public var searchDelaysByQuery: [String: Duration] = [:]
+
+    /// Thrown instead of answering. SPEC §2's *Search unavailable*.
+    public var searchError: (any Error)?
 
     public private(set) var nearbyCallCount = 0
 
-    public init(nearbyResults: [VenueCandidate] = [], searchResults: [VenueCandidate] = []) {
+    /// Every request, in the order it arrived.
+    public private(set) var searchRequests: [VenueSearchRequest] = []
+
+    public var searchCallCount: Int { searchRequests.count }
+
+    public init(
+        nearbyResults: [VenueCandidate] = [],
+        searchResults: [VenueCandidate] = [],
+        resultsByQuery: [String: [VenueCandidate]] = [:]
+    ) {
         self.nearbyResults = nearbyResults
         self.searchResults = searchResults
+        self.resultsByQuery = resultsByQuery
     }
 
     public func nearbyVenues(around fix: LocationFix, radiusMeters: CLLocationDistance) async -> [VenueCandidate] {
@@ -184,7 +244,20 @@ public final class MockPOISearchService: POISearching {
         return nearbyResults.sorted(by: VenueCandidate.isOrderedBefore)
     }
 
-    public func search(_ query: String, near coordinate: CLLocationCoordinate2D?) async -> [VenueCandidate] {
-        searchResults
+    public func search(_ request: VenueSearchRequest) async throws -> [VenueCandidate] {
+
+        searchRequests.append(request)
+
+        let key = request.trimmedQuery.lowercased()
+        let delay = searchDelaysByQuery[key] ?? searchDelay
+        if delay > .zero {
+            // Deliberately swallowing cancellation: a cancelled pass still comes
+            // back with its old answer, which is exactly the race
+            // `VenueSearchModel`'s generation counter exists to lose.
+            try? await Task.sleep(for: delay)
+        }
+
+        if let searchError { throw searchError }
+        return resultsByQuery[key] ?? searchResults
     }
 }

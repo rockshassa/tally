@@ -136,6 +136,42 @@ final class TallyUITests: XCTestCase {
         XCTAssertTrue(card.waitForExistence(timeout: 5), "A logged drink opens a Session, so the card should appear.")
     }
 
+    /// SPEC §1: *"Tapping the card opens the check-in picker (§2) to assign — or
+    /// change — the Session's venue: the one picker, not a second UI."*
+    ///
+    /// And backing out of it is exactly that — backing out: the counter is still
+    /// there, the Session is still running, nothing was tagged.
+    func testTappingTheLiveSessionCardOpensTheCheckInPicker() {
+        launchOnCounter()
+
+        logDrinkButton.tap()
+
+        let card = element("tally.sessionCard")
+        XCTAssertTrue(card.waitForExistence(timeout: 5), "A logged drink opens a Session, so the card should appear.")
+
+        card.tap()
+
+        let picker = element("checkIn.picker")
+        XCTAssertTrue(
+            picker.waitForExistence(timeout: 10),
+            "Tapping the live Session card should open the check-in picker (SPEC §1, §2)."
+        )
+
+        let notNow = app.buttons["Not now"]
+        XCTAssertTrue(notNow.waitForExistence(timeout: 5), "The picker always offers a way out (SPEC §2).")
+        notNow.tap()
+
+        XCTAssertTrue(
+            picker.waitForNonExistence(timeout: 10),
+            "\"Not now\" dismisses the picker."
+        )
+        XCTAssertTrue(
+            card.waitForExistence(timeout: 5),
+            "Backing out tags nothing, so the Session — and its card — are still there."
+        )
+        XCTAssertTrue(logDrinkButton.waitForExistence(timeout: 5), "…and the counter is back.")
+    }
+
     // MARK: - SPEC §1 — undo
 
     func testUndoRemovesTheMostRecentDrinkAndNoOpsAtZero() {
