@@ -103,17 +103,76 @@ public struct FibrinolysisModel: Sendable {
         self.configuration = configuration
     }
 
+    // MARK: Precomputed weights
+
+    /// One alcoholic drink with its compression weight already resolved.
+    ///
+    /// A drink's weight depends only on how many drinks share its trailing
+    /// compression window, so it is fixed for a given log. Resolving it once
+    /// per drink is what keeps repeated sampling linear: the naive path
+    /// recomputes every weight against every other drink at *every* sampled
+    /// instant, which is what made the old cards quadratic in the log size.
+    public struct WeightedDrink: Identifiable, Hashable, Sendable {
+
+        public let id: UUID
+        public let timestamp: Date
+
+        /// `n^(exponent − 1)` for this drink — see `weightedDrinks(_:)`.
+        public let weight: Double
+
+        public init(id: UUID, timestamp: Date, weight: Double) {
+            self.id = id
+            self.timestamp = timestamp
+            self.weight = weight
+        }
+    }
+
+    /// The alcoholic drinks in `events`, in TallyKit's total order, each
+    /// carrying its compression weight.
+    ///
+    /// The weight is `n^(exponent − 1)` where `n` counts alcoholic drinks in
+    /// the trailing compression window ending at that drink (itself included)
+    /// — identical to the per-sample computation it replaces, ties at either
+    /// edge of the window included.
+    public func weightedDrinks(_ events: [DrinkEventSnapshot]) -> [WeightedDrink] {
+        let drinks = alcoholic(events).sorted(by: DrinkEventSnapshot.isOrderedBefore)
+        let times = drinks.map(\.timestamp)
+        return drinks.map { drink in
+            let windowStart = drink.timestamp.addingTimeInterval(-configuration.compressionWindow)
+            let lower = Self.countOfDates(in: times, notAfter: windowStart)
+            let upper = Self.countOfDates(in: times, notAfter: drink.timestamp)
+            let n = max(1, upper - lower)
+            return WeightedDrink(
+                id: drink.id,
+                timestamp: drink.timestamp,
+                weight: pow(Double(n), configuration.compressionExponent - 1)
+            )
+        }
+    }
+
+    /// How many entries of the sorted `dates` are at or before `bound`.
+    private static func countOfDates(in dates: [Date], notAfter bound: Date) -> Int {
+        var low = 0
+        var high = dates.count
+        while low < high {
+            let mid = (low + high) / 2
+            if dates[mid] <= bound { low = mid + 1 } else { high = mid }
+        }
+        return low
+    }
+
     // MARK: Index
 
     /// The modeled suppression index at `date`: the sum of every alcoholic
     /// drink's pulse, compression-weighted, capped at the ceiling.
     /// 0 = baseline. NA drinks contribute nothing (SPEC §4).
     public func suppressionIndex(at date: Date, events: [DrinkEventSnapshot]) -> Double {
-        let drinks = alcoholic(events)
-        let total = drinks.reduce(0.0) { sum, drink in
-            sum + pulse(at: date, drink: drink, among: drinks)
-        }
-        return min(configuration.ceiling, total)
+        suppressionIndex(at: date, weighted: weightedDrinks(events))
+    }
+
+    /// The same index over drinks whose weights are already resolved.
+    public func suppressionIndex(at date: Date, weighted drinks: [WeightedDrink]) -> Double {
+        index(at: date, weighted: drinks)
     }
 
     /// Samples the curve over a range — the Tally-screen and widget cards
@@ -124,19 +183,30 @@ public struct FibrinolysisModel: Sendable {
         step: TimeInterval = 15 * 60,
         events: [DrinkEventSnapshot]
     ) -> [(date: Date, index: Double)] {
+        curve(from: start, to: end, step: step, weighted: weightedDrinks(events))
+    }
+
+    /// The same sampler over drinks whose weights are already resolved.
+    public func curve(
+        from start: Date,
+        to end: Date,
+        step: TimeInterval = 15 * 60,
+        weighted drinks: [WeightedDrink]
+    ) -> [(date: Date, index: Double)] {
         guard end > start, step > 0 else { return [] }
-        let drinks = alcoholic(events)
         var samples: [(Date, Double)] = []
         var t = start
         while t <= end {
-            let value = min(
-                configuration.ceiling,
-                drinks.reduce(0.0) { $0 + pulse(at: t, drink: $1, among: drinks) }
-            )
-            samples.append((t, value))
+            samples.append((t, index(at: t, weighted: drinks)))
             t = t.addingTimeInterval(step)
         }
         return samples
+    }
+
+    /// The summed, capped index over any collection of weighted drinks — the
+    /// one place the ceiling is applied, and the hot path for episode walks.
+    func index(at date: Date, weighted drinks: some Sequence<WeightedDrink>) -> Double {
+        min(configuration.ceiling, drinks.reduce(0.0) { $0 + pulse(at: date, drink: $1) })
     }
 
     /// The modeled peak still ahead of (or at) `date`, if the index is not
@@ -159,8 +229,10 @@ public struct FibrinolysisModel: Sendable {
         events: [DrinkEventSnapshot],
         horizon: TimeInterval = 48 * 3600
     ) -> Date? {
-        guard suppressionIndex(at: date, events: events) > configuration.baselineThreshold else { return nil }
-        let samples = curve(from: date, to: date.addingTimeInterval(horizon), events: events)
+        // Weights resolved once for both passes; the numbers are unchanged.
+        let drinks = weightedDrinks(events)
+        guard index(at: date, weighted: drinks) > configuration.baselineThreshold else { return nil }
+        let samples = curve(from: date, to: date.addingTimeInterval(horizon), weighted: drinks)
         // Scan from the end so a later re-rise (another drink) is respected.
         var boundary: Date?
         for sample in samples.reversed() {
@@ -223,15 +295,11 @@ public struct FibrinolysisModel: Sendable {
 
     /// One drink's contribution at `date`: smooth rise from onset to the peak,
     /// exponential decay after, scaled by the compression weight.
-    private func pulse(
-        at date: Date,
-        drink: DrinkEventSnapshot,
-        among drinks: [DrinkEventSnapshot]
-    ) -> Double {
+    private func pulse(at date: Date, drink: WeightedDrink) -> Double {
         let elapsed = date.timeIntervalSince(drink.timestamp)
         guard elapsed > configuration.onsetDelay else { return 0 }
 
-        let magnitude = configuration.unitPulse * compressionWeight(for: drink, among: drinks)
+        let magnitude = configuration.unitPulse * drink.weight
 
         if elapsed < configuration.peakDelay {
             // Smoothstep from onset to peak: no artificial cliffs in the card.
@@ -242,16 +310,10 @@ public struct FibrinolysisModel: Sendable {
         let sincePeak = elapsed - configuration.peakDelay
         return magnitude * pow(0.5, sincePeak / configuration.decayHalfLife)
     }
-
-    /// `n^(exponent − 1)` where `n` counts alcoholic drinks in the trailing
-    /// compression window ending at this drink (itself included). Paced drinks
-    /// get weight 1; a fourth drink inside two hours gets `4^0.3 ≈ 1.5`.
-    private func compressionWeight(
-        for drink: DrinkEventSnapshot,
-        among drinks: [DrinkEventSnapshot]
-    ) -> Double {
-        let windowStart = drink.timestamp.addingTimeInterval(-configuration.compressionWindow)
-        let n = drinks.count { $0.timestamp > windowStart && $0.timestamp <= drink.timestamp }
-        return pow(Double(max(1, n)), configuration.compressionExponent - 1)
-    }
 }
+
+// MARK: - Convenience
+
+/// Top-level spelling of `FibrinolysisModel.WeightedDrink`, so callers that
+/// only ever touch the timeline don't have to name the model.
+public typealias WeightedDrink = FibrinolysisModel.WeightedDrink
