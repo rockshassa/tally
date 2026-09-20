@@ -40,24 +40,42 @@ struct TallyScreen: View {
             TallyColor.pageGradient.ignoresSafeArea()
 
             VStack(spacing: 18) {
-                todayHeader
+                // The context above the buttons scrolls; the buttons never do.
+                //
+                // SPEC §1's invariant is that the count never waits, and that
+                // starts with the +1 being under the thumb. On a tall phone
+                // this lays out exactly as the `Spacer` did — the content sits
+                // at the top, the buttons at the bottom. On a short one, where
+                // the header, a live Session card, and SPEC §4's full-episode
+                // recovery card together want more room than there is, the
+                // context scrolls instead of pushing the buttons off screen.
+                ScrollView {
+                    VStack(spacing: 18) {
+                        todayHeader
 
-                if let session = activeSession {
-                    // SPEC §1: the card opens SPEC §2's check-in picker — the
-                    // one picker, through the slot the `place` workstream fills.
-                    LiveSessionCard(
-                        session: session,
-                        venueName: venueName(for: session.venueID),
-                        onTap: { featureSlots.assignVenue(toSessionWith: session.id) }
-                    )
+                        if let session = activeSession {
+                            // SPEC §1: the card opens SPEC §2's check-in picker
+                            // — the one picker, through the slot the `place`
+                            // workstream fills.
+                            LiveSessionCard(
+                                session: session,
+                                venueName: venueName(for: session.venueID),
+                                onTap: { featureSlots.assignVenue(toSessionWith: session.id) }
+                            )
+                        }
+
+                        // SPEC §4: the recovery card decides for itself whether
+                        // it exists — off, or nothing to report, and it renders
+                        // nothing at all rather than an empty slot.
+                        SuppressionCurveCard(events: events.map(\.snapshot))
+                    }
+                    .frame(maxWidth: .infinity, alignment: .top)
                 }
-
-                // SPEC §4: the recovery card decides for itself whether it
-                // exists — off, or nothing to report, and it renders nothing at
-                // all rather than an empty slot.
-                SuppressionCurveCard(events: events.map(\.snapshot))
-
-                Spacer(minLength: 0)
+                // The scroll view is the greedy one, so it takes the slack the
+                // `Spacer` used to — same layout on a tall phone, and a short
+                // one scrolls rather than clipping.
+                .scrollIndicators(.hidden)
+                .scrollBounceBehavior(.basedOnSize)
 
                 buttons
             }

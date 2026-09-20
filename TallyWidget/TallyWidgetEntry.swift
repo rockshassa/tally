@@ -66,6 +66,9 @@ extension TallyWidgetEntry {
     /// only. The gallery sample deliberately leaves it off: recovery context is
     /// opt-in (SPEC §4), and a gallery card advertising it would be a lie about
     /// what the widget does for the person looking at it.
+    ///
+    /// Four drinks across the last evening: the episode is still running, so
+    /// the curve carries a Now rule and the caption forecasts a return.
     static func recoverySample(date: Date = Date(), calendar: Calendar = .current) -> TallyWidgetEntry {
         var entry = sample(date: date, calendar: calendar)
         let evening = (0..<4).map {
@@ -75,6 +78,24 @@ extension TallyWidgetEntry {
             )
         }
         entry.suppression = SuppressionSnapshot.make(now: date, events: evening)
+        return entry
+    }
+
+    /// The completed-episode counterpart: three compressed drinks two nights
+    /// ago, whose modeled return is already behind `date` but still inside the
+    /// 24-hour retention window. No Now rule, and a "Returned ~…" caption.
+    static func completedRecoverySample(
+        date: Date = Date(),
+        calendar: Calendar = .current
+    ) -> TallyWidgetEntry {
+        var entry = sample(date: date, calendar: calendar)
+        let twoNightsAgo = (0..<3).map {
+            DrinkEventSnapshot(
+                type: .alcoholic,
+                timestamp: date.addingTimeInterval(-48 * 3600 + TimeInterval(1800 * $0))
+            )
+        }
+        entry.suppression = SuppressionSnapshot.make(now: date, events: twoNightsAgo)
         return entry
     }
 
@@ -123,41 +144,57 @@ enum TallyWidgetData {
 
     // MARK: Entries
 
-    /// How far ahead the suppression curve is pre-rendered, and how finely.
-    static let suppressionHorizon = 12
-    static let suppressionStride: TimeInterval = 3600
-
-    /// The timeline the provider serves: one entry for now, and one for the
-    /// stroke of midnight so the counts visibly reset on the day boundary even
-    /// if the system is slow to run the scheduled refresh.
+    /// How finely the suppression curve is pre-rendered, and the ceiling on how
+    /// many entries one timeline may hold.
     ///
-    /// Everything between those two is event-driven — `LogDrinkIntent` calls
+    /// The stride is hourly because the caption's times are hour-rounded: a
+    /// finer grid would spend entries repainting text that has not changed.
+    /// The cap is WidgetKit hygiene — 48 hourly entries is two days of
+    /// pre-rendered curve, which is more than any refresh budget will outlive.
+    static let suppressionStride: TimeInterval = 3600
+    static let entryLimit = 48
+
+    /// The timeline the provider serves: one entry for now, one for the stroke
+    /// of midnight so the counts visibly reset on the day boundary even if the
+    /// system is slow to run the scheduled refresh, and — with recovery context
+    /// on — an hourly entry from now until the episode stops being shown.
+    ///
+    /// Everything between those is event-driven: `LogDrinkIntent` calls
     /// `WidgetCenter.reloadAllTimelines()` after every log, from any surface.
     ///
-    /// With recovery context on (SPEC §4) that is not enough: the modeled curve
-    /// moves on its own, peaking hours after the last drink, so a card left
-    /// untouched until the next log would quietly go stale — and a stale
-    /// "peaks ~2 a.m." at 4 a.m. is precisely the dishonesty §4 forbids. So we
-    /// add an hourly entry across the next 12 h whenever there is a curve to
-    /// show. They cost one store read, not one refresh each: the events are
-    /// already local and the model is pure, so every hour is rendered up front.
+    /// The hourly run is what the modeled curve needs and the counts do not.
+    /// The curve moves on its own, peaking hours after the last drink and
+    /// crossing baseline hours after that, so a card left untouched until the
+    /// next log would quietly go stale — and a stale "baseline ~2 a.m." at
+    /// 4 a.m. is precisely the dishonesty SPEC §4 forbids. Entries cost one
+    /// store read between them, not one refresh each: the events are already
+    /// local and the model is pure, so every hour is rendered up front.
     static func timeline(now: Date = Date(), calendar: Calendar = .current) -> Timeline<TallyWidgetEntry> {
         let midnight = nextMidnight(after: now, calendar: calendar)
-        let horizon = now.addingTimeInterval(suppressionStride * Double(suppressionHorizon))
+        // The furthest any anchor can reach, since no timeline may exceed
+        // `entryLimit` hourly steps. Fixing the far edge up front is what keeps
+        // this to one store round-trip: the episode that decides the real end
+        // is not known until after the read.
+        let horizon = now.addingTimeInterval(suppressionStride * Double(entryLimit))
 
-        guard let snapshots = fetch(from: now, to: max(midnight, horizon), calendar: calendar) else {
+        guard let fetched = fetch(from: now, to: max(midnight, horizon), calendar: calendar) else {
             let entries = [now, midnight].map { TallyWidgetEntry.empty(date: $0, calendar: calendar) }
             return Timeline(entries: entries, policy: .after(midnight))
         }
 
         var anchors = [now, midnight]
-        if RecoveryContext.isEnabled(), SuppressionSnapshot.make(now: now, events: snapshots) != nil {
-            anchors += (1...suppressionHorizon).map {
-                now.addingTimeInterval(suppressionStride * Double($0))
-            }
+        // SPEC §4: with recovery off, no suppression work happens at all — not
+        // the timeline build, not the extra entries.
+        if RecoveryContext.isEnabled(),
+           let snapshot = SuppressionSnapshot.make(
+               now: now,
+               events: fetched.events,
+               historyStart: fetched.historyStart
+           ) {
+            anchors += hourlyAnchors(from: now, until: snapshot.timeline.retainedUntil)
         }
 
-        let entries = build(at: dedupe(anchors), snapshots: snapshots, calendar: calendar)
+        let entries = build(at: dedupe(anchors), fetched: fetched, calendar: calendar)
         return Timeline(entries: entries, policy: .after(entries.last?.date ?? midnight))
     }
 
@@ -165,13 +202,27 @@ enum TallyWidgetData {
         load(at: [date], calendar: calendar)[0]
     }
 
+    /// Hourly anchors covering `now` (exclusive) through `end`, bounded by
+    /// `entryLimit` so a long retention window cannot ask for a thousand
+    /// entries.
+    static func hourlyAnchors(from now: Date, until end: Date) -> [Date] {
+        var anchors: [Date] = []
+        var cursor = now.addingTimeInterval(suppressionStride)
+        while cursor <= end, anchors.count < entryLimit {
+            anchors.append(cursor)
+            cursor = cursor.addingTimeInterval(suppressionStride)
+        }
+        return anchors
+    }
+
     /// Sorted, with anchors closer together than a minute collapsed — WidgetKit
-    /// wants a strictly increasing timeline.
+    /// wants a strictly increasing timeline — and capped at `entryLimit`.
     private static func dedupe(_ anchors: [Date]) -> [Date] {
-        anchors.sorted().reduce(into: [Date]()) { kept, anchor in
+        let kept = anchors.sorted().reduce(into: [Date]()) { kept, anchor in
             guard let last = kept.last else { return kept.append(anchor) }
             if anchor.timeIntervalSince(last) >= 60 { kept.append(anchor) }
         }
+        return Array(kept.prefix(entryLimit))
     }
 
     static func nextMidnight(after date: Date, calendar: Calendar = .current) -> Date {
@@ -181,6 +232,23 @@ enum TallyWidgetData {
 
     // MARK: Store read
 
+    /// How far back the suppression snapshot needs to see.
+    ///
+    /// Far more than the sparkline's week, and for a different reason: an
+    /// episode is bounded by the last *return to baseline*, not by a fixed
+    /// window, so finding its true first drink means reading back past however
+    /// long the person has been drinking without one. Thirty days is the
+    /// practical ceiling; beyond it `isHistoryComplete` goes false and the
+    /// surfaces say "available history" instead of claiming a first drink.
+    static let suppressionHistory: TimeInterval = 30 * 86_400
+
+    /// One store read, plus the window start it used — which the suppression
+    /// builder needs verbatim to answer `isHistoryComplete` honestly.
+    struct Fetched {
+        let events: [DrinkEventSnapshot]
+        let historyStart: Date
+    }
+
     /// One store round-trip covering every requested anchor date.
     ///
     /// - Returns: an entry per anchor, in the order given. Never throws — a
@@ -188,10 +256,22 @@ enum TallyWidgetData {
     ///   entries flagged `isStoreAvailable == false`.
     private static func load(at anchors: [Date], calendar: Calendar = .current) -> [TallyWidgetEntry] {
         guard let earliest = anchors.min(), let latest = anchors.max() else { return [] }
-        guard let snapshots = fetch(from: earliest, to: latest, calendar: calendar) else {
+        guard let fetched = fetch(from: earliest, to: latest, calendar: calendar) else {
             return anchors.map { .empty(date: $0, calendar: calendar) }
         }
-        return build(at: anchors, snapshots: snapshots, calendar: calendar)
+        return build(at: anchors, fetched: fetched, calendar: calendar)
+    }
+
+    /// The window start one fetch has to reach back to: the wider of the two
+    /// things the widget draws. Both series come out of the same read — the
+    /// sparkline slices its seven days out of it, the curve uses all of it.
+    static func historyStart(for earliest: Date, calendar: Calendar = .current) -> Date {
+        let sparkline = calendar.date(
+            byAdding: .day,
+            value: -(historyLength - 1),
+            to: calendar.startOfDay(for: earliest)
+        ) ?? earliest
+        return min(sparkline, earliest.addingTimeInterval(-suppressionHistory))
     }
 
     /// The one store round-trip, covering every anchor between `earliest` and
@@ -202,15 +282,8 @@ enum TallyWidgetData {
         from earliest: Date,
         to latest: Date,
         calendar: Calendar = .current
-    ) -> [DrinkEventSnapshot]? {
-        // Widest window any anchor can ask about: six days before the earliest
-        // anchor's day through the end of the latest anchor's day. That also
-        // covers the ~60 h of history the suppression model can still feel.
-        let windowStart = calendar.date(
-            byAdding: .day,
-            value: -(historyLength - 1),
-            to: calendar.startOfDay(for: earliest)
-        ) ?? earliest
+    ) -> Fetched? {
+        let windowStart = historyStart(for: earliest, calendar: calendar)
         let windowEnd = calendar.date(
             byAdding: .day,
             value: 1,
@@ -219,7 +292,8 @@ enum TallyWidgetData {
 
         do {
             let context = ModelContext(try TallyRuntime.container())
-            return try EventStore.events(from: windowStart, to: windowEnd, in: context).map(\.snapshot)
+            let events = try EventStore.events(from: windowStart, to: windowEnd, in: context)
+            return Fetched(events: events.map(\.snapshot), historyStart: windowStart)
         } catch {
             return nil
         }
@@ -228,12 +302,12 @@ enum TallyWidgetData {
     /// Turns one fetch into one entry per anchor, in the order given.
     private static func build(
         at anchors: [Date],
-        snapshots: [DrinkEventSnapshot],
+        fetched: Fetched,
         calendar: Calendar = .current
     ) -> [TallyWidgetEntry] {
         var alcoholicByDay: [Date: Int] = [:]
         var nonAlcoholicByDay: [Date: Int] = [:]
-        for snapshot in snapshots {
+        for snapshot in fetched.events {
             let day = calendar.startOfDay(for: snapshot.timestamp)
             switch snapshot.type {
             case .alcoholic: alcoholicByDay[day, default: 0] += 1
@@ -262,7 +336,11 @@ enum TallyWidgetData {
                 history: history,
                 isStoreAvailable: true,
                 suppression: isRecoveryEnabled
-                    ? SuppressionSnapshot.make(now: anchor, events: snapshots)
+                    ? SuppressionSnapshot.make(
+                        now: anchor,
+                        events: fetched.events,
+                        historyStart: fetched.historyStart
+                    )
                     : nil
             )
         }

@@ -9,6 +9,11 @@ import WidgetKit
 /// - **Event-driven:** `LogDrinkIntent` calls `WidgetCenter.reloadAllTimelines()`
 ///   at the end of every log, so a tap on the widget, in the app, or on the
 ///   watch refreshes the counts immediately without burning a refresh budget.
+/// - **Pre-rendered:** with recovery context on (SPEC §4) the modeled curve
+///   moves on its own, so `TallyWidgetData.timeline()` renders an hourly entry
+///   ahead of time for as long as the episode is shown — inside one timeline,
+///   on one store read, rather than one system reload per hour. The timeline
+///   then expires on its last entry, and the next `getTimeline` re-reads.
 struct TallyWidgetProvider: TimelineProvider {
 
     func placeholder(in context: Context) -> TallyWidgetEntry {

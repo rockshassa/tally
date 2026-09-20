@@ -124,6 +124,10 @@ struct RecoveryExplainerSheet: View {
                 body: "Not a measurement of anything in your blood. Not a clot risk score. Not medical advice. It is a model of a population, tuned to no individual — least of all you — and it can never tell you a night was safe."
             ),
             Point(
+                heading: "What zero means",
+                body: "The chart plots how far above the model's own baseline band it sits, so its zero is a modeling threshold, not a reading. Zero means the modeled suppression has fallen back inside that band — it is not a measurement that anything in your blood has returned to normal."
+            ),
+            Point(
                 heading: "Your clinician is the authority",
                 body: "Especially about anticoagulants. Tally knows nothing about your medication, your history, or your body, and nothing it shows is a reason to change how you take a prescription. Ask the person treating you."
             ),

@@ -29,11 +29,16 @@ public struct SessionDetailView: View {
         case venue
         case event(UUID)
 
+        /// SPEC §4's recovery episode for this Session — a *case*, not a second
+        /// `.sheet` modifier, for the reason above.
+        case recovery
+
         var id: String {
             switch self {
             case .note: "note"
             case .venue: "venue"
             case .event(let id): "event-\(id.uuidString)"
+            case .recovery: "recovery"
             }
         }
     }
@@ -85,6 +90,7 @@ public struct SessionDetailView: View {
             case .note: noteEditor
             case .venue: venueAssignment
             case .event(let id): eventEditor(eventID: id)
+            case .recovery: recoveryTimeline
             }
         }
         // Deleting the first drink re-keys an unmaterialized Session (its ID is
@@ -114,6 +120,7 @@ public struct SessionDetailView: View {
             VStack(alignment: .leading, spacing: 9) {
                 summary(session: session, model: model)
                 reboundRow(session: session)
+                recoveryTimelineRow(session: session)
             }
 
             actions(session: session, model: model)
@@ -261,6 +268,35 @@ public struct SessionDetailView: View {
     /// often than show a stale row.
     private var recoveryEnabled: Bool {
         recoveryMirror || RecoveryContext.isEnabled()
+    }
+
+    // MARK: Recovery timeline (SPEC §4)
+
+    /// The episode this Session belongs to, which may be longer than the night
+    /// and may contain other Sessions — the design's "If several Sessions
+    /// belong to one recovery episode, each detail screen opens that same
+    /// complete episode and highlights its own drinks."
+    ///
+    /// The same gate as the rebound line: recovery on, and something alcoholic
+    /// logged. Nothing is computed until the row is tapped.
+    @ViewBuilder
+    private func recoveryTimelineRow(session: DerivedSession) -> some View {
+        if SessionRecoveryTimeline.isAvailable(for: session, recoveryEnabled: recoveryEnabled) {
+            RecoveryTimelineRow { activeSheet = .recovery }
+        }
+    }
+
+    /// Built at presentation time from the *whole* log, because an episode can
+    /// reach back past this Session's first drink and forward past its last.
+    @ViewBuilder
+    private var recoveryTimeline: some View {
+        if let model, let session = model.session(id: sessionID) {
+            let events = (try? EventStore.snapshots(in: modelContext)) ?? []
+            RecoveryTimelineSheet(
+                timeline: SessionRecoveryTimeline.make(session: session, events: events),
+                highlightedEventIDs: SessionRecoveryTimeline.highlightedEventIDs(for: session)
+            )
+        }
     }
 
     // MARK: Actions
