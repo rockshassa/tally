@@ -27,6 +27,7 @@ enum TrendsA11y {
     /// SPEC §4's modeled-suppression tile. Present only while recovery context
     /// is on — its absence is the "zero footprint when off" assertion.
     static let suppressionTile = "trends.suppressionTile"
+    static let suppressionChart = "trends.suppressionChart"
     static let ratioChart = "trends.ratioChart"
     static let venueChart = "trends.venueChart"
     static let heatmap = "trends.heatmap"

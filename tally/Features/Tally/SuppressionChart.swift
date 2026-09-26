@@ -487,20 +487,44 @@ struct SuppressionChart: View {
         }
     }
 
-    /// Zero and the episode's ceiling only. The numbers are display values on
-    /// the axis the caption names — quiet reference points, never a score.
     @AxisContentBuilder
     private var yAxis: some AxisContent {
-        AxisMarks(position: .trailing, values: [0, yDomain.upperBound]) { value in
-            AxisGridLine().foregroundStyle(TallyColor.line)
+        SuppressionYAxis.marks(isExpanded: isExpanded)
+    }
+}
+
+// MARK: - Y axis
+
+/// The vertical scale every suppression chart shares — Tally card, expanded
+/// sheet, and Trends — so a number means the same height everywhere.
+///
+/// A real axis: nice round gridlines down the leading edge, each labelled in
+/// display units (the scale the caption above the chart names, "modeled
+/// suppression above baseline"). Zero is always one of them, and it is the
+/// model's baseline band, not an absence of anything.
+enum SuppressionYAxis {
+
+    @AxisContentBuilder
+    static func marks(isExpanded: Bool) -> some AxisContent {
+        AxisMarks(position: .leading, values: .automatic(desiredCount: isExpanded ? 5 : 4)) { value in
+            AxisGridLine()
+                .foregroundStyle(TallyColor.line)
+            AxisTick(length: 3)
+                .foregroundStyle(TallyColor.line)
             AxisValueLabel {
                 if let display = value.as(Double.self) {
-                    Text("\(Int(display.rounded()))")
+                    Text(label(display))
                         .font(.system(size: isExpanded ? 10 : 8.5).monospacedDigit())
                         .foregroundStyle(TallyColor.inkTertiary)
                 }
             }
         }
+    }
+
+    /// Whole numbers where the ticks are whole, one decimal where a light
+    /// episode's scale needs it — never "2" twice.
+    static func label(_ value: Double) -> String {
+        value.formatted(.number.precision(.fractionLength(0...1)))
     }
 }
 

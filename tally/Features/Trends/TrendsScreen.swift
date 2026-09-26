@@ -111,6 +111,9 @@ public struct TrendsScreen<Insights: View>: View {
             TrendsEmptyState()
         } else {
             drinksSection(data: data)
+            if recoveryEnabled, let series = data.suppressionSeries {
+                suppressionSection(series, granularity: data.granularity)
+            }
             tileGrid(data.tiles, suppression: data.suppression)
             ratioSection(data: data)
             venueSection(data: data)
@@ -129,6 +132,18 @@ public struct TrendsScreen<Insights: View>: View {
         ) {
             TrendsDrinksChart(buckets: data.buckets, granularity: data.granularity)
             TrendsLegend(averageLabel: data.granularity.averageLegendLabel)
+        }
+    }
+
+    /// SPEC §4's recovery context, on every timeframe: the modeled curve under
+    /// the drinks that drove it, on the same span.
+    private func suppressionSection(_ series: TrendsSuppressionSeries, granularity: TrendsGranularity) -> some View {
+        TrendsCard(
+            title: "Modeled suppression",
+            subtitle: "\(granularity.chartSpanTitle) · \(SuppressionSummary.yAxisLabel.lowercased())",
+            identifier: TrendsA11y.suppressionChart
+        ) {
+            TrendsSuppressionChart(series: series, granularity: granularity)
         }
     }
 

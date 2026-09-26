@@ -204,6 +204,25 @@ public struct SuppressionTimeline: Hashable, Sendable {
         return build(episode: episode, drinks: drinks, now: now, model: model, historyStart: historyStart)
     }
 
+    /// The most recent episode, however long ago it ended — the Tally card,
+    /// which stays on screen between nights instead of retiring once
+    /// `retainedUntil` passes. `nil` only when nothing alcoholic has ever
+    /// been logged (or all of it is future-dated).
+    ///
+    /// `make(now:events:model:historyStart:)` keeps its retention rule: the
+    /// widget still retires a finished curve.
+    public static func makeLatest(
+        now: Date,
+        events: [DrinkEventSnapshot],
+        model: FibrinolysisModel = FibrinolysisModel(),
+        historyStart: Date? = nil
+    ) -> SuppressionTimeline? {
+        let drinks = SuppressionEpisodes.contributingDrinks(events, now: now, model: model)
+        let episodes = SuppressionEpisodes.partition(drinks: drinks, now: now, model: model)
+        guard let episode = episodes.last else { return nil }
+        return build(episode: episode, drinks: drinks, now: now, model: model, historyStart: historyStart)
+    }
+
     /// The episode containing a specific logged drink, regardless of retention
     /// — Session detail opening a recovery episode that finished long ago.
     public static func make(

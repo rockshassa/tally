@@ -155,15 +155,29 @@ public final class TrendsModel {
             topVenueSessionCount: topVenue.map { sessionsPerVenue[$0.id] ?? 0 } ?? 0
         )
 
+        let buckets = TrendsMath.buckets(
+            granularity: granularity,
+            dailyAlcoholic: maps.alcoholic,
+            dailyNonAlcoholic: maps.nonAlcoholic,
+            now: now,
+            calendar: calendar
+        )
+
+        // The drinks chart's own span, so the suppression chart sits under it
+        // bucket for bucket.
+        var suppressionSeries: TrendsSuppressionSeries?
+        if recoveryEnabled, let first = buckets.first, let last = buckets.last {
+            let upper = TrendsMath.endOfBucket(start: last.start, granularity: granularity, calendar: calendar)
+            suppressionSeries = TrendsMath.suppressionSeries(
+                events: events,
+                range: first.start...max(upper, first.start.addingTimeInterval(3600)),
+                now: now
+            )
+        }
+
         return TrendsData(
             granularity: granularity,
-            buckets: TrendsMath.buckets(
-                granularity: granularity,
-                dailyAlcoholic: maps.alcoholic,
-                dailyNonAlcoholic: maps.nonAlcoholic,
-                now: now,
-                calendar: calendar
-            ),
+            buckets: buckets,
             ratioPoints: TrendsMath.ratioPoints(
                 weeks: 12,
                 dailyAlcoholic: maps.alcoholic,
@@ -182,7 +196,8 @@ public final class TrendsModel {
             suppression: recoveryEnabled
                 ? TrendsMath.suppression(events: events, now: now)
                 : nil,
-            eventCount: events.count
+            eventCount: events.count,
+            suppressionSeries: suppressionSeries
         )
     }
 }

@@ -219,6 +219,28 @@ public struct TrendsSuppression: Hashable, Sendable {
     public var deltaHours: Double { thisWeekHours - lastWeekHours }
 }
 
+/// One point on the Trends suppression chart: a *display* value, the same
+/// `max(0, raw − baselineThreshold)` scale the Tally card plots.
+public struct TrendsSuppressionPoint: Hashable, Sendable {
+    public let date: Date
+    public let display: Double
+}
+
+/// SPEC §4's modeled suppression curve across the whole Trends window — the
+/// Tally card's episode chart, stretched to 14 days, 12 weeks, or 12 months.
+public struct TrendsSuppressionSeries: Hashable, Sendable {
+
+    public let points: [TrendsSuppressionPoint]
+
+    /// The same span as the drinks chart above it, so the two line up.
+    public let range: ClosedRange<Date>
+
+    /// Where the solid (elapsed) curve turns into the dashed (modeled future) one.
+    public let now: Date
+
+    public var peak: Double { points.map(\.display).max() ?? 0 }
+}
+
 // MARK: - The whole screen's data
 
 /// One immutable snapshot of everything Trends draws. Rebuilt wholesale on every
@@ -241,6 +263,10 @@ public struct TrendsData: Sendable {
     /// Events in the whole log. Zero means the empty state; one means every
     /// chart still has to render something sane (PLAN Gate 2).
     public let eventCount: Int
+
+    /// The suppression curve across the chart window, or `nil` when recovery
+    /// context is off (zero footprint, like `suppression`).
+    public var suppressionSeries: TrendsSuppressionSeries? = nil
 
     public var isEmpty: Bool { eventCount == 0 }
 
@@ -641,6 +667,99 @@ public enum TrendsMath {
     /// older than this are dropped before sampling — the integral is over a week,
     /// but the log behind it can be years long.
     static let suppressionLeadIn: TimeInterval = 72 * 3600
+
+    /// Points drawn on the Trends suppression chart. More than a phone-width
+    /// chart resolves; far fewer than a year sampled hourly.
+    public static let suppressionSeriesLimit = 360
+
+    /// The modeled curve across `range`, for the Trends chart.
+    ///
+    /// Sampled finely enough that a single evening's pulse is never missed —
+    /// 15 min for a fortnight, 30 min for a quarter, hourly for a year — then
+    /// thinned by keeping each stretch's **maximum**, so a year-long chart
+    /// still shows every night's peak at its true height instead of whichever
+    /// sample happened to land on it.
+    ///
+    /// Evaluated a day at a time over only the drinks that can still reach
+    /// that day (`suppressionLeadIn`), so the cost follows the window rather
+    /// than the length of the log. Drinks are weighted once, over the whole
+    /// window, so a night that straddles a chunk boundary is weighted as one
+    /// night.
+    public static func suppressionSeries(
+        events: [DrinkEventSnapshot],
+        range: ClosedRange<Date>,
+        now: Date,
+        model: FibrinolysisModel = FibrinolysisModel(),
+        limit: Int = suppressionSeriesLimit
+    ) -> TrendsSuppressionSeries {
+        let span = range.upperBound.timeIntervalSince(range.lowerBound)
+        let step: TimeInterval =
+            span <= 16 * 86_400 ? 15 * 60 : (span <= 100 * 86_400 ? 30 * 60 : 60 * 60)
+
+        let drinks = model.weightedDrinks(
+            events.filter {
+                $0.type == .alcoholic
+                    && $0.timestamp <= now
+                    && $0.timestamp <= range.upperBound
+                    && $0.timestamp >= range.lowerBound.addingTimeInterval(-suppressionLeadIn)
+            }
+        )
+        .sorted { $0.timestamp < $1.timestamp }
+
+        let threshold = model.configuration.baselineThreshold
+        var samples: [TrendsSuppressionPoint] = []
+
+        var chunkStart = range.lowerBound
+        var low = drinks.startIndex
+        var high = drinks.startIndex
+        while chunkStart <= range.upperBound {
+            let chunkEnd = min(chunkStart.addingTimeInterval(86_400 - step), range.upperBound)
+            let horizon = chunkStart.addingTimeInterval(-suppressionLeadIn)
+            while low < drinks.endIndex, drinks[low].timestamp < horizon { low += 1 }
+            while high < drinks.endIndex, drinks[high].timestamp <= chunkEnd { high += 1 }
+
+            if low < high {
+                for sample in model.curve(from: chunkStart, to: chunkEnd, step: step, weighted: Array(drinks[low..<high])) {
+                    samples.append(TrendsSuppressionPoint(date: sample.date, display: max(0, sample.index - threshold)))
+                }
+            } else {
+                // Nothing can reach this day: flat at baseline, two points
+                // are all a straight line needs.
+                samples.append(TrendsSuppressionPoint(date: chunkStart, display: 0))
+                samples.append(TrendsSuppressionPoint(date: chunkEnd, display: 0))
+            }
+            chunkStart = chunkEnd.addingTimeInterval(step)
+        }
+
+        return TrendsSuppressionSeries(
+            points: thinnedKeepingPeaks(samples, limit: limit),
+            range: range,
+            now: now
+        )
+    }
+
+    /// Thins to at most `limit` points, keeping each stretch's highest one
+    /// (earliest on a tie) and both ends of the series.
+    static func thinnedKeepingPeaks(
+        _ points: [TrendsSuppressionPoint],
+        limit: Int
+    ) -> [TrendsSuppressionPoint] {
+        guard points.count > limit, limit > 2 else { return points }
+        let size = Int((Double(points.count) / Double(limit - 2)).rounded(.up))
+
+        var out: [TrendsSuppressionPoint] = []
+        if let first = points.first { out.append(first) }
+        var index = points.startIndex + 1
+        while index < points.endIndex - 1 {
+            let stretch = points[index..<min(index + size, points.endIndex - 1)]
+            if let top = stretch.max(by: { $0.display < $1.display }) {
+                out.append(top)
+            }
+            index += size
+        }
+        if let last = points.last { out.append(last) }
+        return out
+    }
 
     /// **Modeled suppression-hours** over `[start, end)`: the time the
     /// `FibrinolysisModel` curve spends above its baseline threshold.

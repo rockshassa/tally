@@ -43,11 +43,11 @@ enum SuppressionCardA11y {
 /// zero-height-but-present view would still earn the enclosing `VStack`'s
 /// spacing on both sides.
 ///
-/// It exists exactly while `SuppressionTimeline.make` returns a timeline: the
-/// active episode, or the most recently completed one inside its retention
-/// window (the later of 24 h after the last drink and 24 h after the modeled
-/// return). Retention lives in the timeline, not here, so the widget and the
-/// card can never disagree about when a curve disappears.
+/// With recovery context on it is always there: the active episode, else the
+/// most recent one however long ago it ended (`SuppressionTimeline.makeLatest`),
+/// so the last night's shape — and when it returned to baseline — is one
+/// glance away instead of vanishing 24 h later. The widget keeps the 24 h
+/// retention; it has no room for a curve that is old news.
 struct SuppressionCurveCard: View {
 
     /// The full log. Episode selection is the timeline's job — there is no
@@ -83,7 +83,7 @@ struct SuppressionCurveCard: View {
     var body: some View {
         // Nothing below this line runs while the toggle is off — the model is
         // not even asked (SPEC §4: zero footprint when off).
-        if isRecoveryEnabled, let timeline = SuppressionTimeline.make(now: now, events: events, model: model) {
+        if isRecoveryEnabled, let timeline = SuppressionTimeline.makeLatest(now: now, events: events, model: model) {
             card(timeline)
                 .task(id: refreshKey) {
                     // Keeps the Now marker, the clock times, and the card's own
