@@ -148,7 +148,7 @@ struct EventStoreTests {
 
     // MARK: - Materialization (SPEC §2)
 
-    @Test("Materializing a derived Session is idempotent and preserves the derived ID")
+    @Test("Materializing a derived session is idempotent and preserves the derived ID")
     func materializeIsIdempotent() throws {
         let context = try makeContext()
         let events = [
@@ -171,7 +171,7 @@ struct EventStoreTests {
         #expect(redderived[0].eventIDs == [Fixture.uuid(1), Fixture.uuid(2)])
     }
 
-    @Test("A materialized Session survives deletion of every event in it")
+    @Test("A materialized session survives deletion of every event in it")
     func materializedSessionSurvivesEventDeletion() throws {
         let context = try makeContext()
         try EventStore.upsert([Fixture.event(1, hours: 0), Fixture.event(2, hours: 1)], in: context)

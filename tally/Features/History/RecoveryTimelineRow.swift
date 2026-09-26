@@ -103,7 +103,7 @@ struct RecoveryTimelineRow: View {
         .buttonStyle(.plain)
         .accessibilityIdentifier(HistoryRecoveryA11y.timelineRow)
         .accessibilityLabel("Recovery timeline")
-        .accessibilityHint("Opens the modeled suppression episode this Session belongs to")
+        .accessibilityHint("Opens the modeled suppression episode this session belongs to")
     }
 }
 
@@ -136,7 +136,7 @@ struct RecoveryTimelineSheet: View {
                 .font(.system(size: 19, weight: .semibold, design: .rounded))
                 .foregroundStyle(TallyColor.ink)
 
-            Text("This Session has no logged drink the model can place in time yet.")
+            Text("This session has no logged drink the model can place in time yet.")
                 .font(.system(size: 13))
                 .multilineTextAlignment(.center)
                 .foregroundStyle(TallyColor.inkSecondary)

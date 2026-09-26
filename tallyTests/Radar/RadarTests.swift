@@ -148,7 +148,7 @@ struct FrequentedVenuesTests {
         }
     }
 
-    @Test("Three Sessions in the trailing 90 days earns a geofence; two does not")
+    @Test("Three sessions in the trailing 90 days earns a geofence; two does not")
     func minimumSessions() {
         let anchor = RadarFixture.venue()
         let saltyDog = RadarFixture.venue(id: RadarFixture.saltyDogID, name: "The Salty Dog", offsetMeters: 400)
@@ -187,7 +187,7 @@ struct FrequentedVenuesTests {
         #expect(frequented.targets(sessions: log, venues: [muted], asOf: now).isEmpty)
     }
 
-    @Test("Untagged Sessions and Sessions pointing at deleted venues are ignored")
+    @Test("Untagged sessions and sessions pointing at deleted venues are ignored")
     func danglingSessions() {
         let anchor = RadarFixture.venue()
         let ghost = UUID()
@@ -384,7 +384,7 @@ struct RadarVisitMachineTests {
         #expect(logged.state.visits[0].lastDrinkLoggedAt != nil)
     }
 
-    @Test("An exit cancels the pending follow-up and records the Session-closing exit")
+    @Test("An exit cancels the pending follow-up and records the session-closing exit")
     func exitCancelsDwellAndClosesSession() {
         let machine = self.machine()
         let arrival = enter(machine, at: start)
@@ -461,7 +461,7 @@ struct RadarVisitMachineTests {
         })
     }
 
-    @Test("An exit with no known visit still closes the Session")
+    @Test("An exit with no known visit still closes the session")
     func exitWithoutVisit() {
         let exitAt = start.addingTimeInterval(3600)
         let outcome = machine().handle(
@@ -498,7 +498,7 @@ struct RadarVisitMachineTests {
 /// SPEC §2's mid-Session reminder, which is the dwell follow-up's mirror image:
 /// it speaks only *after* a drink has been logged, is re-armed by every
 /// subsequent one, and is capped at two per visit.
-@Suite("Bar Radar — mid-Session reminder (SPEC §2 Tier 1)")
+@Suite("Bar Radar — mid-session reminder (SPEC §2 Tier 1)")
 @MainActor
 struct SessionReminderTests {
 
@@ -757,7 +757,7 @@ struct SessionReminderTests {
         let logged = machine.handle(.drinkLogged(at: minutes(10)), state: arrival.state)
 
         guard let prompt = reminderPrompts(logged).first else {
-            Issue.record("expected a mid-Session reminder")
+            Issue.record("expected a mid-session reminder")
             return
         }
         #expect(prompt.kind == .sessionReminder)
@@ -857,7 +857,7 @@ struct SessionReminderTests {
 /// path is a `RadarVisitMachine` effect, and the timeout path is arithmetic over a
 /// `DerivedSession` plus the quiet-hours window. Nothing here asserts on delivered
 /// notifications — only on what the pure layer decides.
-@Suite("Bar Radar — Session true-up (SPEC §2)")
+@Suite("Bar Radar — session true-up (SPEC §2)")
 @MainActor
 struct SessionTrueUpTests {
 
@@ -919,7 +919,7 @@ struct SessionTrueUpTests {
         #expect(exit.effects.last == .deliverTrueUp(venueID: target.venueID, closedAt: minutes(40)))
     }
 
-    @Test("An exit with nothing logged asks for nothing — there is no Session to reconcile")
+    @Test("An exit with nothing logged asks for nothing — there is no session to reconcile")
     func exitWithoutDrinksIsSilent() {
         let machine = self.machine()
         let arrival = enter(machine, at: start)
@@ -992,7 +992,7 @@ struct SessionTrueUpTests {
         #expect(third.id == first.id)
     }
 
-    @Test("Replace, not stack: the request identifier is the Session's, not the moment's")
+    @Test("Replace, not stack: the request identifier is the session's, not the moment's")
     func identifierIsKeyedBySession() {
         let night = [event(0), event(30)]
         let early = session(Array(night.prefix(1)))
@@ -1046,7 +1046,7 @@ struct SessionTrueUpTests {
 
     // MARK: - The retro "+1 drink"
 
-    @Test("\"+1 drink\" lands inside the Session it corrects, not at the start of the next one")
+    @Test("\"+1 drink\" lands inside the session it corrects, not at the start of the next one")
     func retroDrinkLandsInsideTheTimeoutClosedSession() {
         let existing = [event(0), event(30)]
         let closed = session(existing)
@@ -1065,7 +1065,7 @@ struct SessionTrueUpTests {
         #expect(SessionDeriver().derive(events: existing + [onTheBoundary]).count == 2)
     }
 
-    @Test("It lands inside an exit-closed Session too, where the exit itself is the boundary")
+    @Test("It lands inside an exit-closed session too, where the exit itself is the boundary")
     func retroDrinkLandsInsideTheExitClosedSession() {
         let venueID = RadarFixture.anchorID
         let existing = [event(0, venueID: venueID), event(30, venueID: venueID)]
@@ -1090,7 +1090,7 @@ struct SessionTrueUpTests {
         #expect(SessionDeriver().derive(events: existing + [onTheExit], venueExits: exits).count == 2)
     }
 
-    @Test("A correction is never dated before the Session it corrects")
+    @Test("A correction is never dated before the session it corrects")
     func logTimestampIsFlooredAtTheLastDrink() {
         let venueID = RadarFixture.anchorID
         // The degenerate case: an exit landing on the only drink's own timestamp.
@@ -1103,7 +1103,7 @@ struct SessionTrueUpTests {
 
     // MARK: - The prompt
 
-    @Test("The prompt reports the Session's own counts and carries them into the notification")
+    @Test("The prompt reports the session's own counts and carries them into the notification")
     func promptContents() {
         let events = [event(0), event(10), event(20, type: .nonAlcoholic), event(40)]
         let closed = session(events)
@@ -1137,7 +1137,7 @@ struct SessionTrueUpTests {
         #expect(abs((trigger?.timeInterval ?? 0) - 3 * 60 * 60) < 1)
     }
 
-    @Test("An untagged Session does not name a place it does not know")
+    @Test("An untagged session does not name a place it does not know")
     func untaggedSession() {
         let closed = session([event(0)])
         let prompt = SessionTrueUp.prompt(for: closed, placeName: "")
@@ -1146,7 +1146,7 @@ struct SessionTrueUpTests {
         #expect(RadarNotificationBuilder.request(for: prompt!).content.title == "Session ended")
     }
 
-    @Test("A Session with nothing in it is not worth reconciling")
+    @Test("A session with nothing in it is not worth reconciling")
     func emptySessionHasNoTrueUp() {
         let empty = DerivedSession(
             id: UUID(),
@@ -1187,7 +1187,7 @@ struct SessionTrueUpTests {
         #expect(RadarService.notificationCategories.contains(category))
     }
 
-    @Test("The Session survives the trip into a notification and back, close moment included")
+    @Test("The session survives the trip into a notification and back, close moment included")
     func payloadRoundTrip() {
         let closed = session([event(0), event(30, type: .nonAlcoholic)])
         let prompt = SessionTrueUp.prompt(for: closed, placeName: "The Anchor")!
@@ -1203,7 +1203,7 @@ struct SessionTrueUpTests {
 
     // MARK: - One per Session (the ledger)
 
-    @Test("A Session that has had its prompt never gets another")
+    @Test("A session that has had its prompt never gets another")
     func oneDeliveryPerSession() {
         let store = RadarStore.ephemeral()
         let sessionID = UUID()
@@ -1257,7 +1257,7 @@ struct SessionTrueUpTests {
         #expect(store.hasSpentTrueUp(sessionID: sessionID, asOf: now))
     }
 
-    @Test("Erase-all forgets which Sessions were reconciled")
+    @Test("Erase-all forgets which sessions were reconciled")
     func resetClearsTheLedger() {
         let store = RadarStore.ephemeral()
         let sessionID = UUID()
@@ -1404,7 +1404,7 @@ struct SessionTrueUpRecoveryTests {
 
     // MARK: - The rule both surfaces share
 
-    @Test("The Session detail row and the true-up ask the same question")
+    @Test("The session detail row and the true-up ask the same question")
     func detailRowSharesTheRule() {
         let closed = compressedNight
 
@@ -1711,7 +1711,7 @@ struct DiscoveryGateTests {
         )
     }
 
-    @Test("A restaurant is not a discovery target — lunch is not a Session")
+    @Test("A restaurant is not a discovery target — lunch is not a session")
     func nightlifeOnly() {
         let bistro = RadarFixture.candidate(name: "Bistro", category: .restaurant, distance: 10)
         #expect(

@@ -148,7 +148,7 @@ final class TrendsUITests: XCTestCase {
         assertVisible(Id.ratioChart, "SPEC §4: NA : alcoholic over time.")
         assertVisible(Id.venueChart, "SPEC §4: the by-venue breakdown.")
         assertVisible(Id.heatmap, "SPEC §4: the hour by weekday heatmap.")
-        assertVisible(Id.sessionStats, "SPEC §4: the Session stats block.")
+        assertVisible(Id.sessionStats, "SPEC §4: the session stats block.")
     }
 
     // MARK: - SPEC §4 — the segmented control
@@ -203,7 +203,7 @@ final class TrendsUITests: XCTestCase {
         openTrends()
 
         XCTAssertTrue(element(Id.drinksChart).waitForExistence(timeout: 5))
-        assertVisible(Id.sessionStats, "A Session with spacers should still produce Session stats.")
+        assertVisible(Id.sessionStats, "A session with spacers should still produce session stats.")
 
         // Back to the counter and in again: reload must not wedge the screen.
         app.tabBars.buttons["Tally"].tap()

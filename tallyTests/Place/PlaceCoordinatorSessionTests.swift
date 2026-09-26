@@ -16,7 +16,7 @@ import Testing
 /// materialized record when there is one), backing out records nothing —
 /// nobody asked a question — and opening the card's picker takes over any
 /// check-in prompt still outstanding for the same Session.
-@Suite("Live Session card — the picker it opens")
+@Suite("Live session card — the picker it opens")
 @MainActor
 struct PlaceCoordinatorSessionTests {
 
@@ -103,7 +103,7 @@ struct PlaceCoordinatorSessionTests {
         #expect(coordinator.pendingPicker == nil)
     }
 
-    @Test("A materialized Session is repointed alongside its events")
+    @Test("A materialized session is repointed alongside its events")
     func resolveRepointsMaterializedRecord() throws {
         let context = try makeContext()
         let memory = makeMemory()
@@ -243,7 +243,7 @@ struct PlaceCoordinatorSessionTests {
         #expect(coordinator.pendingPicker?.sessionTarget?.isMaterialized == false)
     }
 
-    @Test("A Session that isn't there opens nothing")
+    @Test("A session that isn't there opens nothing")
     func unknownSessionOpensNothing() throws {
         let context = try makeContext()
         let coordinator = makeCoordinator(context, memory: makeMemory())

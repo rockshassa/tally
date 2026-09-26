@@ -340,7 +340,7 @@ struct NotificationHistoryOutcomeTests {
             category: NotificationRecordCategory(.barRadarArrival),
             requestIdentifier: identifier,
             title: "Looks like you're at The Anchor",
-            body: "Start a Session?",
+            body: "Start a session?",
             venueName: "The Anchor",
             scheduledAt: HistoryFixture.date(-2),
             now: HistoryFixture.date(-2)
@@ -350,7 +350,7 @@ struct NotificationHistoryOutcomeTests {
             requestIdentifier: identifier,
             category: NotificationRecordCategory(.barRadarArrival),
             title: "Looks like you're at The Anchor",
-            body: "Start a Session?",
+            body: "Start a session?",
             at: HistoryFixture.date(-1),
             now: HistoryFixture.date(-1)
         )
@@ -359,7 +359,7 @@ struct NotificationHistoryOutcomeTests {
             requestIdentifier: identifier,
             category: NotificationRecordCategory(.barRadarArrival),
             title: "Looks like you're at The Anchor",
-            body: "Start a Session?",
+            body: "Start a session?",
             at: now,
             now: now
         )
@@ -625,7 +625,7 @@ struct NotificationHistoryCodingTests {
             category: .barRadarDiscovery,
             identifier: "tally.category.barRadarDiscovery.visit",
             title: "Looks like you're at The Salty Dog",
-            body: "Start a Session?",
+            body: "Start a session?",
             venueName: "The Salty Dog",
             scheduledAt: HistoryFixture.date(-3),
             deliveredAt: HistoryFixture.date(-2),

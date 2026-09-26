@@ -174,7 +174,7 @@ struct SyncMergeVenueTests {
 
     // MARK: Repointing (SPEC §1)
 
-    @Test("Events and materialized Sessions repoint to the survivor")
+    @Test("Events and materialized sessions repoint to the survivor")
     func eventsAndSessionsRepoint() throws {
         let context = try makeContext()
         let survivor = insertVenue(context, mapItemID: "poi-anchor", createdAt: earlier)
@@ -355,7 +355,7 @@ struct SyncMergeVenueTests {
 
 /// SPEC §8: CloudKit can briefly hold two records carrying the same app-level
 /// `Session.id`, because record identity is per-device and the UUID is ours.
-@Suite("Sync merge — materialized Sessions")
+@Suite("Sync merge — materialized sessions")
 @MainActor
 struct SyncMergeSessionTests {
 
@@ -457,7 +457,7 @@ struct SyncMergeSessionTests {
         #expect(sessions.first?.venue?.id == venue.id)
     }
 
-    @Test("Distinct Sessions are never touched")
+    @Test("Distinct sessions are never touched")
     func distinctSessionsSurvive() throws {
         let context = try makeContext()
         context.insert(Session(id: UUID(), startedAt: start, endedAt: start.addingTimeInterval(3_600)))

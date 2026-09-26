@@ -78,7 +78,7 @@ struct NotificationHistoryView: View {
             .accessibilityIdentifier(SettingsA11y.NotificationHistory.clearConfirmButton)
             Button("Cancel", role: .cancel) {}
         } message: {
-            Text("Deletes the record of what Tally sent and held back. Your drinks, venues, and Sessions are untouched.")
+            Text("Deletes the record of what Tally sent and held back. Your drinks, venues, and sessions are untouched.")
         }
     }
 
@@ -279,7 +279,7 @@ private enum NotificationHistoryPreview {
             category: NotificationRecordCategory(.barRadarArrival),
             requestIdentifier: "preview.arrival",
             title: "Looks like you're at The Anchor",
-            body: "Start a Session?",
+            body: "Start a session?",
             venueName: "The Anchor",
             deliveredAt: now.addingTimeInterval(-3600)
         )
@@ -288,7 +288,7 @@ private enum NotificationHistoryPreview {
             requestIdentifier: "preview.arrival",
             category: NotificationRecordCategory(.barRadarArrival),
             title: "Looks like you're at The Anchor",
-            body: "Start a Session?",
+            body: "Start a session?",
             venueName: "The Anchor",
             at: now.addingTimeInterval(-3540)
         )

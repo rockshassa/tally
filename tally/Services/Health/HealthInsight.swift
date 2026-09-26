@@ -246,7 +246,7 @@ nonisolated enum HealthInsightCopy {
 
     /// SPEC §4's threshold phrasing: "3+ drink Sessions".
     static func sessionThreshold(_ threshold: Int) -> String {
-        "\(threshold)+ drink Session"
+        "\(threshold)+ drink session"
     }
 
     /// The example sentence from SPEC §4, generated:

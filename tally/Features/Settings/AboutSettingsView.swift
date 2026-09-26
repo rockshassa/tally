@@ -19,7 +19,7 @@ struct AboutSettingsView: View {
             Section {
                 paragraph(
                     "Nothing leaves your device.",
-                    "There is no Tally server and no account. Your events, venues, and Sessions live in this app's storage. Turn on iCloud sync and they also live in your own private iCloud database, which Apple encrypts and which nobody else — including us — can read."
+                    "There is no Tally server and no account. Your events, venues, and sessions live in this app's storage. Turn on iCloud sync and they also live in your own private iCloud database, which Apple encrypts and which nobody else — including us — can read."
                 )
 
                 paragraph(

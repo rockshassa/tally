@@ -116,7 +116,7 @@ struct FibrinolysisModelTests {
         let events = offsets.map { drink($0) }
         let deriver = SessionDeriver()
         let derived = deriver.derive(events: events.map { $0 }, materialized: [], venueExits: [])
-        precondition(derived.count == 1, "fixture should form one Session")
+        precondition(derived.count == 1, "fixture should form one session")
         return derived[0]
     }
 

@@ -325,7 +325,7 @@ enum NotificationCopy {
     /// start". The copy leads with what the user just did.
     enum Primer {
 
-        static let title = "That's your first Session"
+        static let title = "That's your first session"
 
         static let message =
             "Tally can follow up with a Sunday digest, a nudge if drinks are stacking up, "

@@ -170,7 +170,7 @@ struct SuppressionTickTests {
         #expect(ticks.allSatisfy { range.contains($0.date) })
     }
 
-    @Test("The Session that opened the chart gets the brighter ticks")
+    @Test("The session that opened the chart gets the brighter ticks")
     func highlighting() {
         let mine = UUID()
         let markers = [Fixture.marker(0), Fixture.marker(6, id: mine), Fixture.marker(12)]
@@ -271,7 +271,7 @@ struct SessionRecoveryTimelineTests {
         #expect(!SessionRecoveryTimeline.isAvailable(for: dry, recoveryEnabled: true))
     }
 
-    @Test("The anchor is the Session's earliest alcoholic drink, not its earliest event")
+    @Test("The anchor is the session's earliest alcoholic drink, not its earliest event")
     func anchor() {
         let water = Fixture.drink(-0.5, type: .nonAlcoholic)
         let first = Fixture.drink(0)
@@ -282,7 +282,7 @@ struct SessionRecoveryTimelineTests {
         #expect(!SessionRecoveryTimeline.highlightedEventIDs(for: night).contains(water.id))
     }
 
-    @Test("Two Sessions inside one episode open the same complete episode")
+    @Test("Two sessions inside one episode open the same complete episode")
     func sharedEpisode() throws {
         // Friday night and Saturday night, with Saturday's first drink landing
         // before Friday's modeled return: one episode, two Sessions.
@@ -328,7 +328,7 @@ struct SessionRecoveryTimelineTests {
         #expect(timeline.start == Fixture.at(0))
     }
 
-    @Test("A Session with nothing the model can place has no episode to open")
+    @Test("A session with nothing the model can place has no episode to open")
     func noEpisode() {
         let dry = session([Fixture.drink(0, type: .nonAlcoholic)])
         #expect(SessionRecoveryTimeline.make(session: dry, events: dry.events, now: Fixture.at(2)) == nil)

@@ -29,7 +29,7 @@ enum RadarCopy {
         static func title(_ place: String) -> String {
             NotificationText.venueTitle(prefix: prefix, venue: place)
         }
-        static let body = "Start a Session?"
+        static let body = "Start a session?"
 
         static func text(_ place: String) -> NotificationText {
             NotificationText(title: title(place), body: body)
@@ -41,7 +41,7 @@ enum RadarCopy {
         static func title(_ place: String) -> String {
             NotificationText.venueTitle(prefix: "Still at ", venue: place)
         }
-        static let body = "Nothing logged yet — start a Session?"
+        static let body = "Nothing logged yet — start a session?"
 
         static func text(_ place: String) -> NotificationText {
             NotificationText(title: title(place), body: body)
@@ -69,7 +69,7 @@ enum RadarCopy {
         static func title(_ place: String) -> String {
             NotificationText.venueTitle(prefix: Arrival.prefix, venue: place)
         }
-        static let body = "Start a Session?"
+        static let body = "Start a session?"
 
         static func text(_ place: String) -> NotificationText {
             NotificationText(title: title(place), body: body)
@@ -183,7 +183,7 @@ enum RadarCopy {
         static let title = "Bar Radar needs Always location"
 
         static let message =
-            "Bar Radar notices you're somewhere worth tracking and offers to start a Session. "
+            "Bar Radar notices you're somewhere worth tracking and offers to start a session. "
             + "It works in two tiers, and both need iOS to be allowed to tell Tally when you arrive."
 
         static let bullets = [

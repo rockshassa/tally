@@ -14,7 +14,7 @@ The main screen is a counter, nothing else:
 - **Decrement (−)** removes the *most recent* alcoholic drink event from today (undo semantics — it deletes the event, including its location/venue data). No-op at zero.
 - **Secondary button: +1 non-alcoholic drink** (water, soda, NA beer — one bucket, no subtypes in v1). Same decrement semantics.
 - Haptic + count animation on tap; today's tallies always visible.
-- While a Session is active (§2), the counter shows a live Session card: venue, counts, spacers, elapsed time. **Tapping the card opens the check-in picker (§2)** to assign — or change — the Session's venue: the one picker, not a second UI. An untagged card says so ("Session in progress · tap to add where").
+- While a session is active (§2), the counter shows a live session card: venue, counts, spacers, elapsed time. **Tapping the card opens the check-in picker (§2)** to assign — or change — the session's venue: the one picker, not a second UI. An untagged card says so ("Session in progress · tap to add where").
 - **Retro-logging:** long-press either button to add a drink at a custom time (no location attached, since we can't know where you were).
 
 ### Data model
@@ -61,8 +61,8 @@ Storage: **SwiftData in an App Group container** shared by the app and widget ex
 - No `@Attribute(.unique)` constraints (CloudKit doesn't support them). Identity is the app-level `id` UUID field; all merges dedupe by it.
 - Every attribute is optional or has a default; every relationship is optional with an explicit inverse.
 - Enums stored as raw-value strings with defaults.
-- **Derive, don't store, aggregates.** Points, streaks, badges, and Session groupings are recomputed from the event log, never persisted — so there's no aggregate state to conflict-resolve when devices merge. The one exception is materialized `Session` records (§2), which store identity and user annotations — never counts, which stay derived.
-- Venue dedupe is an app-level concern: if two devices create the same bar (matched by `mapItemID`, or by name + proximity for user-defined venues), a post-sync merge pass collapses them and repoints events and materialized Sessions.
+- **Derive, don't store, aggregates.** Points, streaks, badges, and session groupings are recomputed from the event log, never persisted — so there's no aggregate state to conflict-resolve when devices merge. The one exception is materialized `Session` records (§2), which store identity and user annotations — never counts, which stay derived.
+- Venue dedupe is an app-level concern: if two devices create the same bar (matched by `mapItemID`, or by name + proximity for user-defined venues), a post-sync merge pass collapses them and repoints events and materialized sessions.
 
 ---
 
@@ -76,25 +76,25 @@ Storage: **SwiftData in an App Group container** shared by the app and widget ex
 1. **User venues first.** If the fix falls inside a saved venue's geofence (Home, or a previously confirmed bar), auto-tag the event. No prompt.
 2. **POI lookup.** Otherwise run an `MKLocalSearch` (MapKit points-of-interest) around the fix, filtered to nightlife/bar/brewery/restaurant/cafe categories within ~75 m.
 3. **Check-in prompt.** If there's a single confident candidate (nearest POI, distance < accuracy + 50 m), show a non-blocking sheet: *"Looks like you're at **The Anchor** — check in?"* Confirm / pick another nearby result / dismiss.
-   - **Check-in picker.** "Somewhere else nearby…", and any tap-through from a Bar Radar notification, open a ranked list: every nearby candidate **ordered by distance**, each row showing name, category, and distance, with the inferred venue marked. Includes saved venues in range, a live-updating distance as a fresh fix arrives, a search field, and *Not a bar / don't ask here* which writes a `SuppressedPlace` (§2 discovery). Picking a venue tags the Session and dismisses.
+   - **Check-in picker.** "Somewhere else nearby…", and any tap-through from a Bar Radar notification, open a ranked list: every nearby candidate **ordered by distance**, each row showing name, category, and distance, with the inferred venue marked. Includes saved venues in range, a live-updating distance as a fresh fix arrives, a search field, and *Not a bar / don't ask here* which writes a `SuppressedPlace` (§2 discovery). Picking a venue tags the session and dismisses.
    - **Venue search.** The search field searches MapKit **as you type**: debounced (~300 ms), one in-flight request at a time, stale responses discarded. Results are anchored to the fix (or to where the drinks were logged, from History), tried bar-first (nightlife/brewery/distillery/winery, then restaurant/cafe), and **widened** — any place, then a wider region — only when the narrower pass finds nothing, so "bowling alley" still works. Ranking: name match quality (exact, then prefix, then contains), then bar categories, then distance. Results dedupe against the nearby list and saved venues by §1's rule, the saved venue winning name and identity. A failed lookup reads as *Search unavailable*, never as *No match*. When the typed name isn't on screen, *Use "X"* creates a user-defined venue at the fix.
-   - Confirming saves the venue and tags the event. **Subsequent drinks within the same Session auto-tag silently** — you get asked once per outing, not per drink.
-   - Dismissing tags nothing and doesn't re-prompt this Session.
-4. **Ambiguous or no results:** tag with raw coordinates only; the history view — and the live Session card (§1) — let you assign a venue later, through the same picker and search.
+   - Confirming saves the venue and tags the event. **Subsequent drinks within the same session auto-tag silently** — you get asked once per outing, not per drink.
+   - Dismissing tags nothing and doesn't re-prompt this session.
+4. **Ambiguous or no results:** tag with raw coordinates only; the history view — and the live session card (§1) — let you assign a venue later, through the same picker and search.
 
 **Home** is a user-defined venue set during onboarding ("Set my home location"), not inferred — inferring where someone sleeps is a privacy footgun. Drinks at home are tagged without any prompt.
 
 ### Sessions
 
-**"Session"** is the product's name for one outing, and the term the UI, notifications, trends, and badges all use.
+A **session** is the product's name for one outing, and the term the UI, notifications, trends, and badges all use. It is an ordinary word, cased normally for its context: "start a session?", "3 sessions", but "Session ended" at the start of a sentence or title.
 
-- **Boundaries:** a Session opens with the first drink after ≥ 3 h of inactivity. Consecutive events belong to the same Session while each is within 3 h of the previous and inside the same venue geofence (or has no venue). A Session closes 3 h after its last drink — its recorded end time is that last drink's timestamp — or immediately when a Bar Radar exit event fires, whichever comes first.
-- **What a Session carries:** venue, start/end, duration, alcoholic and NA counts, spacers, points earned.
-- **Where it surfaces:** the live card on the Tally screen while active (*"Session at The Anchor — 3 drinks · 1 spacer · 1 h 40 m"*); History is a list of past Sessions, each opening into its drink timeline; Trends reports per-Session stats (§4).
-- **Implementation — materialize-on-touch:** Sessions are computed deterministically from the event log, keyed by their first event's UUID — every device derives the identical Session list from the same events, so by default nothing is stored and there's zero sync surface. The first time a Session is *touched* — annotated, pinned, or shared — the app persists a lightweight `Session` record (§1) capturing that ID, its boundaries, and venue. From then on the record owns the identity: later event edits (undoing the first drink, retro-logging, timestamp changes) can no longer dangle a reference. Events falling inside a materialized Session's window belong to it; derivation runs over the remainder. Two devices materializing the same Session produce the same deterministic ID, so sync dedupes by UUID like everything else.
-- **Notes & pins:** any Session in History can be given a note (*"Dave's birthday"*) or pinned; either action materializes it.
-- **Sharing:** share-sheet snapshot — a rendered card (image or text) with venue, date, counts, spacers, duration, and badges earned. Sharing materializes the Session; the card itself is a static export, since recipients don't have your data and there's no backend to host a live view.
-- Manual split/merge of Sessions is out of scope for v1.
+- **Boundaries:** a session opens with the first drink after ≥ 3 h of inactivity. Consecutive events belong to the same session while each is within 3 h of the previous and inside the same venue geofence (or has no venue). A session closes 3 h after its last drink — its recorded end time is that last drink's timestamp — or immediately when a Bar Radar exit event fires, whichever comes first.
+- **What a session carries:** venue, start/end, duration, alcoholic and NA counts, spacers, points earned.
+- **Where it surfaces:** the live card on the Tally screen while active (*"Session at The Anchor — 3 drinks · 1 spacer · 1 h 40 m"*); History is a list of past sessions, each opening into its drink timeline; Trends reports per-session stats (§4).
+- **Implementation — materialize-on-touch:** sessions are computed deterministically from the event log, keyed by their first event's UUID — every device derives the identical session list from the same events, so by default nothing is stored and there's zero sync surface. The first time a session is *touched* — annotated, pinned, or shared — the app persists a lightweight `Session` record (§1) capturing that ID, its boundaries, and venue. From then on the record owns the identity: later event edits (undoing the first drink, retro-logging, timestamp changes) can no longer dangle a reference. Events falling inside a materialized session's window belong to it; derivation runs over the remainder. Two devices materializing the same session produce the same deterministic ID, so sync dedupes by UUID like everything else.
+- **Notes & pins:** any session in History can be given a note (*"Dave's birthday"*) or pinned; either action materializes it.
+- **Sharing:** share-sheet snapshot — a rendered card (image or text) with venue, date, counts, spacers, duration, and badges earned. Sharing materializes the session; the card itself is a static export, since recipients don't have your data and there's no backend to host a live view.
+- Manual split/merge of sessions is out of scope for v1.
 
 ### Bar Radar — proactive venue detection
 
@@ -102,25 +102,25 @@ Bar Radar notices you're somewhere worth tracking and prompts before you've logg
 
 **Tier 1 — Frequented venues (geofences)**
 
-- **Frequented** = a venue with ≥ 3 Sessions in the trailing 90 days, derived from the event log (never stored, per §1). Home and muted venues are excluded.
+- **Frequented** = a venue with ≥ 3 sessions in the trailing 90 days, derived from the event log (never stored, per §1). Home and muted venues are excluded.
 - The app registers OS geofences (`CLMonitor` circular conditions) for the top frequented venues by recency, staying under the system's ~20-region cap. Geofence evaluation is done by the OS on-device — the app receives entry/exit events only, never a location stream.
-- **On entry:** auto check-in to the venue (it's known — no confirmation sheet needed) and fire a local notification: *"Looks like you're at **The Anchor** — start a Session?"* with actions:
-  - **+1 drink** — logs directly from the notification, opening the Session auto-tagged to the venue, without launching the app.
+- **On entry:** auto check-in to the venue (it's known — no confirmation sheet needed) and fire a local notification: *"Looks like you're at **The Anchor** — start a session?"* with actions:
+  - **+1 drink** — logs directly from the notification, opening the session auto-tagged to the venue, without launching the app.
   - **Not drinking tonight** — suppresses all further prompts for this visit.
   - **Tapping the notification body** opens the app on the **check-in picker** (below) rather than the bare counter — the inferred venue can be wrong, and the tap is the user saying "let me look."
 - **Notification copy** must survive the banner's two-line clamp: the venue name goes in the **title**, the question in the **body**, and any secondary line (e.g. the recovery rebound class, §4) in a **subtitle** — never appended to the body, where it is the first thing truncated. Titles stay under ~40 characters; long venue names truncate in the middle, keeping the distinguishing tail.
-- **Dwell follow-up:** at entry, schedule a second notification for +45 min (configurable): *"Still at The Anchor — start a Session?"* It's cancelled if any drink gets logged or the exit event fires first. **One follow-up maximum per visit** — after that, silence.
-- **Mid-Session reminder:** once a Session is running at the venue, undercounting becomes the failure mode — so if no drink has been logged for 60 min (configurable) *and the visit is still ongoing*, one quiet nudge: *"Still at The Anchor — anything to add?"* with a **+1 drink** action. Any log resets the timer; the geofence exit or "Not drinking tonight" cancels it; **two maximum per visit**. The venue-presence condition is load-bearing: without it this would nag people who simply stopped drinking, which the §5 tone rules forbid.
-- **Session true-up:** when a Session with ≥1 drink closes, one reconciliation prompt: *"Session at The Anchor ended — 4 drinks, 1 water. Look right?"* with actions **Looks right** (dismisses), **+1 drink** (retro-logs, venue-tagged, timestamped at close), and tap-through to the Session's editable timeline in History. Fires on every close, one per Session: a geofence exit delivers immediately (quiet-hours exempt — the user is demonstrably out and awake); a timeout close (home, or no geofence) delivers with quiet-hours *postpone* semantics, so a Session that expires at 2 a.m. reconciles in the morning instead of waking anyone.
+- **Dwell follow-up:** at entry, schedule a second notification for +45 min (configurable): *"Still at The Anchor — start a session?"* It's cancelled if any drink gets logged or the exit event fires first. **One follow-up maximum per visit** — after that, silence.
+- **Mid-session reminder:** once a session is running at the venue, undercounting becomes the failure mode — so if no drink has been logged for 60 min (configurable) *and the visit is still ongoing*, one quiet nudge: *"Still at The Anchor — anything to add?"* with a **+1 drink** action. Any log resets the timer; the geofence exit or "Not drinking tonight" cancels it; **two maximum per visit**. The venue-presence condition is load-bearing: without it this would nag people who simply stopped drinking, which the §5 tone rules forbid.
+- **Session true-up:** when a session with ≥1 drink closes, one reconciliation prompt: *"Session at The Anchor ended — 4 drinks, 1 water. Look right?"* with actions **Looks right** (dismisses), **+1 drink** (retro-logs, venue-tagged, timestamped at close), and tap-through to the session's editable timeline in History. Fires on every close, one per session: a geofence exit delivers immediately (quiet-hours exempt — the user is demonstrably out and awake); a timeout close (home, or no geofence) delivers with quiet-hours *postpone* semantics, so a session that expires at 2 a.m. reconciles in the morning instead of waking anyone.
 - Exit followed by re-entry within 2 h counts as the same visit (stepping outside shouldn't re-trigger the arrival prompt).
 
 **Tier 2 — Discovery ("Discover new bars", its own sub-toggle, on by default when Bar Radar is enabled)**
 
-- **Mechanism:** OS visit monitoring (`CLVisit`) — the low-power service that fires when the system decides you've arrived somewhere and lingered. On a visit event, the app runs the same MapKit POI lookup as check-in; a **single confident nightlife candidate** within the visit's accuracy radius fires the same *"start a Session?"* prompt. No candidate, or an ambiguous cluster → the event is discarded on the spot.
+- **Mechanism:** OS visit monitoring (`CLVisit`) — the low-power service that fires when the system decides you've arrived somewhere and lingered. On a visit event, the app runs the same MapKit POI lookup as check-in; a **single confident nightlife candidate** within the visit's accuracy radius fires the same *"start a session?"* prompt. No candidate, or an ambiguous cluster → the event is discarded on the spot.
 - **Expected latency:** visit events land 10–20 minutes into a stay (occasionally on departure). Discovery behaves like a dwell reminder, not an arrival ping — geofence immediacy stays exclusive to Tier 1.
 - **False-positive gating:** plausible hours only (default 4 pm–2 am, configurable), max 3 discovery prompts per week, never inside the Home geofence, never at suppressed places.
 - **"Not a bar / don't ask here"** is a first-class action on discovery prompts — it writes a `SuppressedPlace` (§1) and that spot goes permanently quiet. Two plain dismissals at the same spot auto-suppress it.
-- **Graduation:** a confirmed Session at a discovered bar creates the Venue and counts toward frequented status — discovery is Tier 1's on-ramp. Three Sessions later the bar earns its own geofence.
+- **Graduation:** a confirmed session at a discovered bar creates the Venue and counts toward frequented status — discovery is Tier 1's on-ramp. Three sessions later the bar earns its own geofence.
 
 Controls: the global Bar Radar toggle governs both tiers; discovery is additionally gated by its own sub-toggle. Per-venue mute (also offered on the arrival notification after repeated dismissals) covers Tier 1; neither tier ever applies to Home.
 
@@ -130,10 +130,10 @@ Controls: the global Bar Radar toggle governs both tiers; discovery is additiona
 
 Design rule: **mechanics only ever reward NA drinks and moderation — nothing ever awards points for alcohol.**
 
-- **Spacers.** An NA drink logged between two alcoholic drinks in a Session is a "spacer." Spacers are the core scoring unit.
-- **Points.** +10 per NA drink, +25 bonus per spacer, +50 for finishing a Session at ≥ 1:1 NA-to-alcohol ratio.
+- **Spacers.** An NA drink logged between two alcoholic drinks in a session is a "spacer." Spacers are the core scoring unit.
+- **Points.** +10 per NA drink, +25 bonus per spacer, +50 for finishing a session at ≥ 1:1 NA-to-alcohol ratio.
 - **Streaks.** Daily streak for hitting your ratio goal (default 1:1, configurable). Dry days extend the streak automatically.
-- **Badges** (examples): *Pacer* — alternated all night; *Designated Legend* — a Session at a bar with zero alcoholic drinks; *Hydration Week* — 7-day ratio streak; *Dry Spell* — 3/7/30 dry days.
+- **Badges** (examples): *Pacer* — alternated all night; *Designated Legend* — a session at a bar with zero alcoholic drinks; *Hydration Week* — 7-day ratio streak; *Dry Spell* — 3/7/30 dry days.
 - Progress lives on a lightweight "You" tab: points, current streak, badge case. No leaderboards, no social — this data is nobody else's business.
 - All of it recomputed from the event log, so watch- and phone-logged drinks contribute identically.
 
@@ -148,7 +148,7 @@ A "Trends" tab built on Swift Charts:
 - **Ratio over time** (NA : alcoholic).
 - **By-venue breakdown** — where your drinks happen (Home vs bars vs everything else).
 - **Time-of-day heatmap** (hour × weekday).
-- **Session stats:** average drinks per Session, Sessions per week, longest Session, best-paced Session (highest spacer ratio).
+- **Session stats:** average drinks per session, sessions per week, longest session, best-paced session (highest spacer ratio).
 - Stat tiles: this week vs last week, longest dry streak, current streak, most frequent venue.
 
 ### Health insights (HealthKit)
@@ -157,11 +157,11 @@ Opt-in cross-reference of drinking against activity data, to answer one question
 
 - **Reads** (each individually grantable in the HealthKit permission sheet): exercise minutes, active energy, step count, and workouts. Sleep and resting heart rate are deliberately out of scope for v1 (see Open questions).
 - **Correlation engine — runs entirely on-device**, comparing you only against your own baseline:
-  - *Morning-after:* activity on days following a Session of ≥ 2 alcoholic drinks (threshold configurable) vs days following dry days.
+  - *Morning-after:* activity on days following a session of ≥ 2 alcoholic drinks (threshold configurable) vs days following dry days.
   - *Weekly drift:* trailing 4-week exercise trend against drink totals — flags when a rising drink trend co-occurs with a falling activity trend.
-  - *Workout displacement:* whether workout frequency drops in weeks with more Sessions.
+  - *Workout displacement:* whether workout frequency drops in weeks with more sessions.
 - **Statistical guardrails:** an insight is shown only when there's enough data (≥ 8 drinking-day and ≥ 8 dry-day comparisons in the trailing 90 days) *and* the effect is meaningful (≥ 20% difference). Weak or noisy correlations produce silence, not filler — no insight is better than a spurious one.
-- **Framing:** insights state correlations in your own numbers and never claim causation or prescribe: *"After 3+ drink Sessions, your next-day exercise averages 12 min vs your usual 34."* The §5 tone rules apply — facts, no shame.
+- **Framing:** insights state correlations in your own numbers and never claim causation or prescribe: *"After 3+ drink sessions, your next-day exercise averages 12 min vs your usual 34."* The §5 tone rules apply — facts, no shame.
 - **Surfaces:** insight cards at the top of the Trends tab; a morning-after comparison chart (drinking-day-after vs dry-day-after activity, side by side); and the Activity insight notification category (§5).
 - **Refresh:** HealthKit background delivery (`HKObserverQuery`) re-runs the engine as new activity data arrives; insights are recomputed, never persisted, per §1's derive-don't-store rule.
 - **Absence is fine:** no HealthKit permission, or no correlation found, simply means the cards don't appear. Nothing else in the app depends on this feature.
@@ -179,17 +179,17 @@ An opt-in layer for users recovering from a thrombotic event, surfacing how drin
 
 - Each alcoholic drink contributes a **suppression pulse**: no effect during ~45 min absorption, rising to a peak ~4 h after the drink, then exponential decay with a ~8 h half-life.
 - **Compression penalty:** pulses from drinks landing within a 2 h window compound superlinearly (binge patterns suppress disproportionately — the strongest signal in the literature). NA drinks contribute nothing; their benefit is the intake they displace.
-- Pulses sum into a dimensionless **suppression index** (0 = baseline, capped at 100), from which derive: the live curve, the projected return-to-baseline time, and per-Session totals.
+- Pulses sum into a dimensionless **suppression index** (0 = baseline, capped at 100), from which derive: the live curve, the projected return-to-baseline time, and per-session totals.
 
 **The display scale (charts only):** the raw index decays exponentially and so never reaches an exact zero in a useful chart range. Every chart therefore plots a **baseline-relative display value** — `max(0, raw index − baselineThreshold)` — whose zero is the model's own baseline band, giving the curve an honest endpoint without inventing a recovery cutoff or touching the model. The vertical scale is labelled **"Modeled suppression above baseline"** and its endpoint **"0 · modeled baseline"**; charts explain that *"Zero on this chart means the model is within its baseline range. It is not a measured biological value."* Chart numbers — the now-marker, the peak, the inspection readout — are consistently display values, **never percentages and never the raw index**. Classification, suppression-hours, and every other derived figure stay on the raw index.
 
-**The episode:** a drinking-and-recovery interval, and the unit every chart draws — *not* a §2 Session. It starts at the first alcoholic drink after the previous episode's return to modeled baseline; every drink logged **before that episode's projected return joins it**, recomputing the curve and the return; a drink at or after a completed return starts a new one. Only drinks at or before the current clock count — future-dated and NA entries neither start nor extend an episode — and completion is only ever found after every included drink has passed its pulse peak, so a temporary dip before a pending rise never ends one. One episode can span several days and several Sessions; earlier drinks keep contributing their tails across the boundary, because an episode boundary is a display boundary and not a reset. A defensive limit on the return search produces an explicit **unavailable** endpoint — never a fabricated time.
+**The episode:** a drinking-and-recovery interval, and the unit every chart draws — *not* a §2 session. It starts at the first alcoholic drink after the previous episode's return to modeled baseline; every drink logged **before that episode's projected return joins it**, recomputing the curve and the return; a drink at or after a completed return starts a new one. Only drinks at or before the current clock count — future-dated and NA entries neither start nor extend an episode — and completion is only ever found after every included drink has passed its pulse peak, so a temporary dip before a pending rise never ends one. One episode can span several days and several sessions; earlier drinks keep contributing their tails across the boundary, because an episode boundary is a display boundary and not a reset. A defensive limit on the return search produces an explicit **unavailable** endpoint — never a fabricated time.
 
 **Surfaces (recovery context on):**
 
 - **Suppression curve card** on the Tally screen and widget: the whole episode — first drink, rise, peak, decline, and the return to 0 — with a now-marker on it, a solid curve for elapsed time and a dashed one for the forecast, and three facts underneath (**First drink**, **Peak / Peaked**, **Baseline / Returned**). Tapping it opens an expanded, inspectable chart. Forecast times are approximate and day-aware (*"~1 p.m. tomorrow"*), and carry *"Based on logged drinks; assumes no additional drinks."* Amber-scale intensity only; never green.
-- **Retention:** a completed episode stays on the Tally screen until the later of **24 h after its last drink** and **24 h after its modeled return**, so a long recovery can be seen reaching baseline; a new episode replaces it immediately. After that the card disappears, and the episode remains openable from Session detail's **Recovery timeline** row, which opens the same complete episode with that Session's own drinks highlighted.
-- **Session rebound classification** on Session detail and the true-up: peak drinking density per 90 min classifies the Session *paced / elevated / compressed*, with one factual line about the modeled next-morning rebound.
+- **Retention:** a completed episode stays on the Tally screen until the later of **24 h after its last drink** and **24 h after its modeled return**, so a long recovery can be seen reaching baseline; a new episode replaces it immediately. After that the card disappears, and the episode remains openable from session detail's **Recovery timeline** row, which opens the same complete episode with that session's own drinks highlighted.
+- **Session rebound classification** on session detail and the true-up: peak drinking density per 90 min classifies the session *paced / elevated / compressed*, with one factual line about the modeled next-morning rebound.
 - **Reframed copy:** dry-streak captions, the pacing nudge, and a weekly Trends tile (modeled suppression-hours, this week vs last) gain the fibrinolytic why.
 
 **Explicitly out (v1):** resting-HR/HRV cross-checks (candidate follow-on via the §4 insights engine), any anticoagulant-specific guidance, and any notification category — recovery context changes what existing surfaces say, it does not add new pings.
@@ -204,13 +204,13 @@ All local (no server), **opt-in per category**, with quiet-hours respect. Notifi
 |---|---|---|
 | Weekly digest | Sunday evening | "12 drinks this week, down 3 from last. 7-day avg: 1.7/day." |
 | Trend alerts | Sustained change in 7-day average | "Third week trending down — nice." |
-| Pacing nudge | 3+ alcoholic drinks within 90 min, in-Session | "Time for a spacer? +25 pts." |
+| Pacing nudge | 3+ alcoholic drinks within 90 min, in-session | "Time for a spacer? +25 pts." |
 | Streak protection | Evening of a day that would break a streak | "5-day streak on the line — log some water." |
-| Bar Radar arrival | Geofence entry at a frequented bar (§2) | "Looks like you're at The Anchor — start a Session?" |
-| Bar Radar dwell | 45 min after arrival, still there, nothing logged | "Still at The Anchor — start a Session?" |
-| Bar Radar discovery | Visit detected at a bar never logged before (§2), max 3/week | "Looks like you're at The Salty Dog — start a Session?" |
-| Session reminder | 60 min since the last log, Session active, still at the venue (§2), max 2/visit | "Still at The Anchor — anything to add?" |
-| Session true-up | A Session with ≥1 drink closes (§2); exit closes fire immediately, timeout closes postpone through quiet hours | "Session at The Anchor ended — 4 drinks, 1 water. Look right?" |
+| Bar Radar arrival | Geofence entry at a frequented bar (§2) | "Looks like you're at The Anchor — start a session?" |
+| Bar Radar dwell | 45 min after arrival, still there, nothing logged | "Still at The Anchor — start a session?" |
+| Bar Radar discovery | Visit detected at a bar never logged before (§2), max 3/week | "Looks like you're at The Salty Dog — start a session?" |
+| session reminder | 60 min since the last log, session active, still at the venue (§2), max 2/visit | "Still at The Anchor — anything to add?" |
+| session true-up | A session with ≥1 drink closes (§2); exit closes fire immediately, timeout closes postpone through quiet hours | "Session at The Anchor ended — 4 drinks, 1 water. Look right?" |
 | Activity insight | New qualifying correlation from the health-insights engine (§4), at most one per week | "Your exercise minutes run 40% lower in weeks with 10+ drinks." |
 
 **Notification history.** Every notification the app schedules or delivers is recorded on-device — category, title/body as sent, timestamp, venue if any, and what the user did with it (ignored, dismissed, an action tapped, or opened). Surfaced as a reverse-chronological list in Settings → Notifications → *History*, grouped by day, with the suppression reason when something was deliberately **not** sent (quiet hours, category off, weekly cap, one-per-visit). It is a debugging and calibration surface — the log is derived from a rolling 30-day store, never synced, and cleared by erase-all.
@@ -259,7 +259,7 @@ Ships as its own milestone, but costs almost nothing because §1's rules were fo
 
 ## 9. App structure
 
-Three tabs: **Tally** (counter + live Session card), **Trends**, **You** (streaks/badges/settings). History — the list of past Sessions, each with an editable drink timeline, venue assignment, note, and pin — lives behind the today count on the Tally tab.
+Three tabs: **Tally** (counter + live session card), **Trends**, **You** (streaks/badges/settings). History — the list of past sessions, each with an editable drink timeline, venue assignment, note, and pin — lives behind the today count on the Tally tab.
 
 ### Onboarding & permissions
 
@@ -277,7 +277,7 @@ Then straight to the counter. No notification, Always-location, or HealthKit pro
 
 | Permission | Asked when | Primer | If declined |
 |---|---|---|---|
-| Notifications | Right after the first Session closes — a success moment, not a cold start | "Want the weekly digest and pacing nudges?" with the §5 per-category toggles | All categories off; re-enable from Settings |
+| Notifications | Right after the first session closes — a success moment, not a cold start | "Want the weekly digest and pacing nudges?" with the §5 per-category toggles | All categories off; re-enable from Settings |
 | Location Always | Flipping on Bar Radar | The two-tier explainer (§2) before the system upgrade prompt | Bar Radar stays off; nothing else changes |
 | HealthKit read | Tapping the "Connect Health" placeholder card in Trends | "See what drinking does to your activity — on-device only" | Insight cards never appear (§4) |
 | HealthKit write | Its Settings toggle | — | Nothing else affected |
@@ -286,7 +286,7 @@ Then straight to the counter. No notification, Always-location, or HealthKit pro
 
 - The weekly digest may use provisional (quiet) notification delivery so the first digest can arrive before any prompt; loud categories always go through the primer.
 - Settings shows live permission status per feature; anything denied at the system level deep-links to the iOS Settings app, since re-prompting is impossible.
-- No nagging: a feature explains what it's missing only where that feature lives — an untagged Session row offers "enable location to tag venues" inline — never as an interrupting popup.
+- No nagging: a feature explains what it's missing only where that feature lives — an untagged session row offers "enable location to tag venues" inline — never as an interrupting popup.
 
 ### Settings
 
@@ -294,9 +294,9 @@ Lives on the You tab. Every configurable default named elsewhere in this spec ha
 
 - **Goal:** NA-ratio goal (default 1 : 1, per §3).
 - **Venues:** edit Home (pin + radius); saved venue list — rename, recategorize, per-venue Bar Radar mute; suppressed-places list with un-suppress.
-- **Bar Radar:** master toggle (triggers the Always upgrade flow, §2); discovery sub-toggle (on by default); dwell reminder delay (default 45 min); mid-Session reminder interval (default 60 min); discovery hours (default 4 pm–2 am); live permission status.
+- **Bar Radar:** master toggle (triggers the Always upgrade flow, §2); discovery sub-toggle (on by default); dwell reminder delay (default 45 min); mid-session reminder interval (default 60 min); discovery hours (default 4 pm–2 am); live permission status.
 - **Notifications:** the §5 per-category toggles; quiet-hours window; live permission status.
-- **Health:** connect/disconnect HealthKit reads (§4); write-to-Health toggle (off by default); morning-after Session threshold (default ≥ 2 drinks); **Recovery context** toggle (§4, off by default, with its explainer).
+- **Health:** connect/disconnect HealthKit reads (§4); write-to-Health toggle (off by default); morning-after session threshold (default ≥ 2 drinks); **Recovery context** toggle (§4, off by default, with its explainer).
 - **iCloud sync:** toggle (on by default when signed in, §8); last-sync status.
 - **Data:** export everything as CSV/JSON via the share sheet; **Erase all data** (destructive, double-confirm, also clears the CloudKit private database when sync is on).
 - **About:** privacy explainer (what leaves the device: nothing), standard-drink guidelines link.
@@ -323,13 +323,13 @@ The icon is the **Japanese tally symbol 正** — the five-stroke character used
 ## 11. Milestones
 
 1. **M1 — Count:** logging UI, SwiftData store with CloudKit-compatible schema, today view, undo, retro-log, first-run onboarding shell (§9).
-2. **M2 — Place:** location fix, home setup, POI inference, check-in flow, Sessions (derivation + live card + History + materialize-on-touch with notes/pins).
+2. **M2 — Place:** location fix, home setup, POI inference, check-in flow, sessions (derivation + live card + History + materialize-on-touch with notes/pins).
 3. **M3 — Widget:** interactive widgets, shared store, reconciliation flow.
 4. **M4 — Watch:** watchOS app, complications, WatchConnectivity mirroring, UUID-dedupe merge.
 5. **M5 — Sync:** enable CloudKit on both targets, venue merge pass, settings toggle.
-6. **M6 — Trends:** charts tab, stat tiles, Session share cards.
+6. **M6 — Trends:** charts tab, stat tiles, session share cards.
 7. **M7 — Play:** points, streaks, badges.
-8. **M8 — Nudge:** notification categories, scheduling, quiet hours, post-first-Session notification primer, full Settings screen (§9).
+8. **M8 — Nudge:** notification categories, scheduling, quiet hours, post-first-session notification primer, full Settings screen (§9).
 9. **M9 — Radar:** frequented-venue derivation, Always-permission upgrade flow, `CLMonitor` geofences, arrival + dwell notifications with actionable +1, per-venue mute; discovery tier (`CLVisit` visit monitoring, POI matching, hour/frequency gating, suppression list).
 10. **M10 — Insights:** HealthKit read permission flow, correlation engine with statistical guardrails, Trends insight cards + morning-after chart, Activity insight notifications, background delivery.
 

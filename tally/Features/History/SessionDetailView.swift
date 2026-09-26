@@ -567,7 +567,7 @@ struct SessionNoteEditor: View {
                 .padding(14)
                 .placeGlassCard(cornerRadius: 14)
 
-            Text("Adding a note saves this Session permanently, so the name sticks to the night.")
+            Text("Adding a note saves this session permanently, so the name sticks to the night.")
                 .font(.system(size: 12))
                 .foregroundStyle(PlacePalette.ink3)
                 .fixedSize(horizontal: false, vertical: true)
@@ -652,7 +652,7 @@ struct SessionEventEditSheet: View {
                 .padding(.vertical, 10)
                 .placeGlassCard(cornerRadius: 14)
 
-            Text("Moving a drink can move it into — or out of — a different Session, since Sessions are computed from the times you logged.")
+            Text("Moving a drink can move it into — or out of — a different session, since sessions are computed from the times you logged.")
                 .font(.system(size: 12))
                 .foregroundStyle(PlacePalette.ink3)
                 .fixedSize(horizontal: false, vertical: true)
@@ -700,7 +700,7 @@ struct SessionEventEditSheet: View {
             Button("Delete", role: .destructive, action: onDelete)
             Button("Keep it", role: .cancel) {}
         } message: {
-            Text("It disappears from your counts, trends, and this Session.")
+            Text("It disappears from your counts, trends, and this session.")
         }
     }
 }

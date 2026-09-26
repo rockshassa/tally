@@ -189,7 +189,7 @@ public struct SettingsScreen: View {
                 .accessibilityIdentifier(SettingsA11y.Data.eraseConfirmButton)
             Button("Cancel", role: .cancel) {}
         } message: {
-            Text("Every drink, venue, and Session is deleted from this device. Export first if you want a copy.")
+            Text("Every drink, venue, and session is deleted from this device. Export first if you want a copy.")
         }
         .alert("This cannot be undone", isPresented: $isConfirmingEraseFinally) {
             Button("Erase everything", role: .destructive) { eraseAllData() }
@@ -390,7 +390,7 @@ public struct SettingsScreen: View {
             identifierPrefix: SettingsA11y.BarRadar.primer,
             symbolName: "dot.radiowaves.left.and.right",
             title: "Let Tally notice the bar",
-            message: "Bar Radar prompts you to start a Session when you arrive somewhere worth tracking. It needs Always location — iOS does the watching, and only tells Tally when you arrive or leave.",
+            message: "Bar Radar prompts you to start a session when you arrive somewhere worth tracking. It needs Always location — iOS does the watching, and only tells Tally when you arrive or leave.",
             bullets: [
                 "Bars you go to often get a precise geofence — the prompt arrives as you walk in.",
                 "Discovery spots new bars from the visits iOS already detects, during your chosen hours.",
@@ -746,7 +746,7 @@ public struct SettingsScreen: View {
             SettingsSectionHeader(title: "Data")
         } footer: {
             SettingsSectionFootnote(
-                text: "The CSV is your event log. The JSON is everything: events, venues, Sessions, and suppressed places."
+                text: "The CSV is your event log. The JSON is everything: events, venues, sessions, and suppressed places."
             )
         }
     }

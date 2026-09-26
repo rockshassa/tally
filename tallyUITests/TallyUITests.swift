@@ -133,7 +133,7 @@ final class TallyUITests: XCTestCase {
         logDrinkButton.tap()
 
         let card = element("tally.sessionCard")
-        XCTAssertTrue(card.waitForExistence(timeout: 5), "A logged drink opens a Session, so the card should appear.")
+        XCTAssertTrue(card.waitForExistence(timeout: 5), "A logged drink opens a session, so the card should appear.")
     }
 
     /// SPEC §1: *"Tapping the card opens the check-in picker (§2) to assign — or
@@ -147,14 +147,14 @@ final class TallyUITests: XCTestCase {
         logDrinkButton.tap()
 
         let card = element("tally.sessionCard")
-        XCTAssertTrue(card.waitForExistence(timeout: 5), "A logged drink opens a Session, so the card should appear.")
+        XCTAssertTrue(card.waitForExistence(timeout: 5), "A logged drink opens a session, so the card should appear.")
 
         card.tap()
 
         let picker = element("checkIn.picker")
         XCTAssertTrue(
             picker.waitForExistence(timeout: 10),
-            "Tapping the live Session card should open the check-in picker (SPEC §1, §2)."
+            "Tapping the live session card should open the check-in picker (SPEC §1, §2)."
         )
 
         let notNow = app.buttons["Not now"]
@@ -167,7 +167,7 @@ final class TallyUITests: XCTestCase {
         )
         XCTAssertTrue(
             card.waitForExistence(timeout: 5),
-            "Backing out tags nothing, so the Session — and its card — are still there."
+            "Backing out tags nothing, so the session — and its card — are still there."
         )
         XCTAssertTrue(logDrinkButton.waitForExistence(timeout: 5), "…and the counter is back.")
     }

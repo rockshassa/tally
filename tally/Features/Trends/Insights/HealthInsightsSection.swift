@@ -237,7 +237,7 @@ public struct HealthInsightsSection: View {
                         kind: .morningAfter,
                         metric: .exerciseMinutes,
                         headline: "Next-day exercise 65% lower",
-                        detail: "After 3+ drink Sessions, your next-day exercise averages 12 min vs your usual 34.",
+                        detail: "After 3+ drink sessions, your next-day exercise averages 12 min vs your usual 34.",
                         relativeChange: -0.647,
                         sampleCount: 40,
                         comparison: HealthInsightComparison(

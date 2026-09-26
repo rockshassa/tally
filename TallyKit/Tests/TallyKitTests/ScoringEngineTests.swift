@@ -49,7 +49,7 @@ struct ScoringEngineTests {
         #expect(ScoringEngine.spacerCount(in: events) == 2)
     }
 
-    @Test("A Session with no alcohol has no spacers")
+    @Test("A session with no alcohol has no spacers")
     func allNonAlcoholicHasNoSpacers() {
         let events = (1...3).map { Fixture.event($0, hours: Double($0) * 0.5, .nonAlcoholic) }
         #expect(ScoringEngine.spacerCount(in: events) == 0)
@@ -85,7 +85,7 @@ struct ScoringEngineTests {
         #expect(score.balancedSessionPoints == 0)
     }
 
-    @Test("The +50 lands only once the Session has finished")
+    @Test("The +50 lands only once the session has finished")
     func balancedBonusRequiresAFinishedSession() {
         let events = [
             Fixture.event(1, hours: 0, .alcoholic),
@@ -128,7 +128,7 @@ struct ScoringEngineTests {
         #expect(strict.score(derived, asOf: Fixture.at(10)).balancedSessionPoints == 0)
     }
 
-    @Test("Total points sum across Sessions")
+    @Test("Total points sum across sessions")
     func totalsAcrossSessions() {
         let events = [
             Fixture.event(1, hours: 0, .alcoholic),
@@ -245,7 +245,7 @@ struct ScoringEngineTests {
         #expect(!engine.isPacer(session(events)))
     }
 
-    @Test("Designated Legend: a Session at a bar with zero alcoholic drinks")
+    @Test("Designated Legend: a session at a bar with zero alcoholic drinks")
     func designatedLegendBadge() {
         let events = [
             Fixture.event(1, hours: 0, .nonAlcoholic, venue: Fixture.anchorVenueID),

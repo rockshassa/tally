@@ -70,13 +70,13 @@ public enum TallyNotificationCategory: String, CaseIterable, Identifiable, Codab
         switch self {
         case .weeklyDigest: "Sunday evening: the week's counts and your 7-day average."
         case .trendAlert: "When your 7-day average has moved in one direction for a few weeks. At most one a week."
-        case .pacingNudge: "Mid-Session, after three drinks inside 90 minutes."
+        case .pacingNudge: "Mid-session, after three drinks inside 90 minutes."
         case .streakProtection: "Evening of a day that would end your ratio streak."
         case .barRadarArrival: "Arriving at a bar you go to often."
         case .barRadarDwell: "Still at the bar 45 minutes later, nothing logged."
         case .barRadarDiscovery: "A bar you've never logged, at most three prompts a week."
-        case .sessionReminder: "Mid-Session, an hour after your last drink and still at the bar. At most twice a visit."
-        case .sessionTrueUp: "When a Session ends: what it counted, and a way to correct it. Once per Session."
+        case .sessionReminder: "Mid-session, an hour after your last drink and still at the bar. At most twice a visit."
+        case .sessionTrueUp: "When a session ends: what it counted, and a way to correct it. Once per session."
         case .activityInsight: "A new correlation between drinking and your activity. At most one a week."
         }
     }

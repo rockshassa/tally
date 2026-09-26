@@ -60,7 +60,7 @@ public struct HistoryView: View {
                     ForEach(model.pinnedSessions) { session in
                         row(session, model: model)
                     }
-                    sectionHeader("All Sessions")
+                    sectionHeader("All sessions")
                         .padding(.top, 8)
                 }
 
@@ -104,10 +104,10 @@ public struct HistoryView: View {
 
     private var emptyState: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("No Sessions yet")
+            Text("No sessions yet")
                 .font(.system(size: 19, weight: .semibold, design: .serif))
                 .foregroundStyle(PlacePalette.ink)
-            Text("A Session opens with your first drink and closes three hours after your last. They'll collect here.")
+            Text("A session opens with your first drink and closes three hours after your last. They'll collect here.")
                 .font(.system(size: 14))
                 .foregroundStyle(PlacePalette.ink2)
                 .fixedSize(horizontal: false, vertical: true)

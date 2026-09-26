@@ -10,7 +10,7 @@ struct SessionDeriverTests {
 
     // MARK: - Determinism
 
-    @Test("Shuffled insert order produces an identical Session list with identical IDs")
+    @Test("Shuffled insert order produces an identical session list with identical IDs")
     func determinismUnderShuffledInsertOrder() {
         let events: [DrinkEventSnapshot] = [
             Fixture.event(1, hours: 0, .alcoholic, venue: Fixture.anchorVenueID),
@@ -64,7 +64,7 @@ struct SessionDeriverTests {
 
     // MARK: - Boundaries (SPEC §2)
 
-    @Test("A gap shorter than 3 h keeps one Session")
+    @Test("A gap shorter than 3 h keeps one session")
     func gapUnderThreeHoursContinues() {
         let events = [
             Fixture.event(1, hours: 0),
@@ -75,7 +75,7 @@ struct SessionDeriverTests {
         #expect(sessions[0].eventIDs == [Fixture.uuid(1), Fixture.uuid(2)])
     }
 
-    @Test("A gap of exactly 3 h opens a new Session")
+    @Test("A gap of exactly 3 h opens a new session")
     func gapOfExactlyThreeHoursSplits() {
         let events = [
             Fixture.event(1, hours: 0),
@@ -99,7 +99,7 @@ struct SessionDeriverTests {
         #expect(sessions[0].id == Fixture.uuid(7))
     }
 
-    @Test("Recorded end is the last drink's timestamp; the Session closes 3 h later")
+    @Test("Recorded end is the last drink's timestamp; the session closes 3 h later")
     func endIsLastDrinkAndCloseIsThreeHoursLater() {
         let events = [
             Fixture.event(1, hours: 0),
@@ -112,7 +112,7 @@ struct SessionDeriverTests {
         #expect(session.duration == 1.5 * Fixture.hour)
     }
 
-    @Test("A venue change splits the Session even inside the 3 h window")
+    @Test("A venue change splits the session even inside the 3 h window")
     func venueChangeSplits() {
         let events = [
             Fixture.event(1, hours: 0, .alcoholic, venue: Fixture.anchorVenueID),
@@ -126,7 +126,7 @@ struct SessionDeriverTests {
         #expect(sessions[1].venueID == Fixture.saltyDogVenueID)
     }
 
-    @Test("An untagged event never splits a venue Session")
+    @Test("An untagged event never splits a venue session")
     func untaggedEventContinuesVenueSession() {
         let events = [
             Fixture.event(1, hours: 0, .alcoholic, venue: Fixture.anchorVenueID),
@@ -138,7 +138,7 @@ struct SessionDeriverTests {
         #expect(sessions[0].venueID == Fixture.anchorVenueID)
     }
 
-    @Test("A check-in on a later drink adopts the venue for the whole Session")
+    @Test("A check-in on a later drink adopts the venue for the whole session")
     func lateCheckInAdoptsVenue() {
         // SPEC §2: you get asked once per outing; the first drink is often logged
         // before the check-in sheet is confirmed.
@@ -165,7 +165,7 @@ struct SessionDeriverTests {
         #expect(sessions[0].events[1].venueID == nil)
     }
 
-    @Test("Retro-logging an earlier first drink re-keys an unmaterialized Session")
+    @Test("Retro-logging an earlier first drink re-keys an unmaterialized session")
     func retroLogRekeysUnmaterializedSession() {
         let original = [
             Fixture.event(2, hours: 1.0),
@@ -180,7 +180,7 @@ struct SessionDeriverTests {
         #expect(sessions[0].startedAt == Fixture.at(0.2))
     }
 
-    @Test("Undoing the first drink re-keys an unmaterialized Session")
+    @Test("Undoing the first drink re-keys an unmaterialized session")
     func undoOfFirstEventRekeysUnmaterializedSession() {
         let events = [
             Fixture.event(1, hours: 0),
@@ -197,7 +197,7 @@ struct SessionDeriverTests {
 
     // MARK: - Bar Radar exit hook (SPEC §2)
 
-    @Test("A Bar Radar exit closes the Session immediately")
+    @Test("A Bar Radar exit closes the session immediately")
     func venueExitClosesSessionEarly() {
         let events = [
             Fixture.event(1, hours: 0, .alcoholic, venue: Fixture.anchorVenueID),
@@ -207,12 +207,12 @@ struct SessionDeriverTests {
 
         let session = deriver.derive(events: events, venueExits: [exit])[0]
         #expect(session.endedAt == Fixture.at(1.0), "end time stays the last drink's timestamp")
-        #expect(session.closesAt == Fixture.at(1.5), "but the Session closes at the exit")
+        #expect(session.closesAt == Fixture.at(1.5), "but the session closes at the exit")
         #expect(session.isActive(asOf: Fixture.at(1.4)))
         #expect(!session.isActive(asOf: Fixture.at(1.6)))
     }
 
-    @Test("A drink after a Bar Radar exit starts a new Session inside the 3 h window")
+    @Test("A drink after a Bar Radar exit starts a new session inside the 3 h window")
     func drinkAfterExitStartsNewSession() {
         let events = [
             Fixture.event(1, hours: 0, .alcoholic, venue: Fixture.anchorVenueID),
@@ -226,7 +226,7 @@ struct SessionDeriverTests {
         #expect(sessions[1].id == Fixture.uuid(2))
     }
 
-    @Test("An exit at a different venue leaves the Session alone")
+    @Test("An exit at a different venue leaves the session alone")
     func exitAtOtherVenueIsIgnored() {
         let events = [
             Fixture.event(1, hours: 0, .alcoholic, venue: Fixture.anchorVenueID),
@@ -301,7 +301,7 @@ struct SessionDeriverTests {
         #expect(sessions.count == 3)
         #expect(sessions[0].id == Fixture.uuid(1))
         #expect(sessions[0].eventIDs == [Fixture.uuid(1), Fixture.uuid(2)])
-        #expect(sessions[1].id == Fixture.uuid(3), "event 3 is outside the window, so it opens its own Session")
+        #expect(sessions[1].id == Fixture.uuid(3), "event 3 is outside the window, so it opens its own session")
         #expect(!sessions[1].isMaterialized)
         #expect(sessions[2].id == Fixture.uuid(4))
     }
@@ -360,7 +360,7 @@ struct SessionDeriverTests {
         #expect(sessions.first(where: { $0.id == Fixture.uuid(2) })?.eventIDs.isEmpty == true)
     }
 
-    @Test("Materialized and derived Sessions come back interleaved in time order")
+    @Test("Materialized and derived sessions come back interleaved in time order")
     func outputIsOrderedByStart() {
         let record = MaterializedSession(id: Fixture.uuid(20), startedAt: Fixture.at(10), endedAt: Fixture.at(11))
         let events = [
@@ -374,7 +374,7 @@ struct SessionDeriverTests {
 
     // MARK: - Queries
 
-    @Test("The active Session is the one still inside its close window")
+    @Test("The active session is the one still inside its close window")
     func activeSessionTracksTheClock() {
         let events = [
             Fixture.event(1, hours: 0),
@@ -385,7 +385,7 @@ struct SessionDeriverTests {
         #expect(deriver.activeSession(events: events, asOf: Fixture.at(4.01)) == nil)
     }
 
-    @Test("An event can be traced back to its Session")
+    @Test("An event can be traced back to its session")
     func sessionContainingEvent() {
         let events = [
             Fixture.event(1, hours: 0),
@@ -403,7 +403,7 @@ struct SessionDeriverTests {
         #expect(deriver.activeSession(events: []) == nil)
     }
 
-    @Test("A single event is a complete Session")
+    @Test("A single event is a complete session")
     func singleEventIsASession() {
         let sessions = deriver.derive(events: [Fixture.event(1, hours: 0)])
         #expect(sessions.count == 1)

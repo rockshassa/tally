@@ -196,7 +196,7 @@ struct SessionSharePreviewSheet: View {
 
     var body: some View {
         VStack(spacing: 18) {
-            Text("Share this Session")
+            Text("Share this session")
                 .font(.system(size: 20, weight: .semibold, design: .serif))
                 .foregroundStyle(TallyColor.ink)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -207,7 +207,7 @@ struct SessionSharePreviewSheet: View {
                 .frame(maxWidth: SessionShareCard.cardWidth)
                 .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
                 .shadow(color: Color.black.opacity(0.45), radius: 18, y: 10)
-                .accessibilityLabel("Preview of the Session card")
+                .accessibilityLabel("Preview of the session card")
 
             Text("A static image — recipients don't have your data, and nothing about this night leaves the device unless you send it.")
                 .font(.system(size: 12))

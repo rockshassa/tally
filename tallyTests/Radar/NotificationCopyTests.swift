@@ -146,7 +146,7 @@ struct NotificationTextSplitTests {
         let text = RadarNotificationBuilder.text(for: prompt(.arrival, place: "The Anchor"))
 
         #expect(text.title == "Looks like you're at The Anchor")
-        #expect(text.body == "Start a Session?")
+        #expect(text.body == "Start a session?")
         #expect(text.subtitle == "")
         #expect(!text.hasSubtitle)
     }
@@ -156,7 +156,7 @@ struct NotificationTextSplitTests {
         let text = RadarNotificationBuilder.text(for: prompt(.dwell, place: "The Anchor"))
 
         #expect(text.title == "Still at The Anchor")
-        #expect(text.body == "Nothing logged yet — start a Session?")
+        #expect(text.body == "Nothing logged yet — start a session?")
         #expect(text.subtitle == "")
     }
 
@@ -165,7 +165,7 @@ struct NotificationTextSplitTests {
         let text = RadarNotificationBuilder.text(for: prompt(.discovery, place: "The Salty Dog"))
 
         #expect(text.title == "Looks like you're at The Salty Dog")
-        #expect(text.body == "Start a Session?")
+        #expect(text.body == "Start a session?")
         #expect(text.subtitle == "")
     }
 

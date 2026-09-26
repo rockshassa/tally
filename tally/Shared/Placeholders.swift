@@ -48,7 +48,7 @@ struct HistoryPlaceholderView: View {
             symbolName: "clock.arrow.circlepath",
             tint: TallyColor.inkSecondary,
             title: "History",
-            message: "Past Sessions, each opening into its drink timeline.",
+            message: "Past sessions, each opening into its drink timeline.",
             footnote: "SPEC §2"
         )
         .accessibilityIdentifier(A11y.Placeholder.history)

@@ -212,7 +212,7 @@ public struct VenueAssignmentView: View {
                 }
 
                 if let onClear {
-                    Button("Remove venue from this Session", action: onClear)
+                    Button("Remove venue from this session", action: onClear)
                         .font(.system(size: 13.5, weight: .medium))
                         .foregroundStyle(PlacePalette.ink3)
                         .frame(maxWidth: .infinity)

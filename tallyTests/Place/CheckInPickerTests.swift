@@ -467,7 +467,7 @@ struct CheckInPickerRequestTests {
         )
     }
 
-    @Test("From a check-in prompt: keyed by the Session, seeded with its candidates")
+    @Test("From a check-in prompt: keyed by the session, seeded with its candidates")
     func fromPrompt() {
         let prompt = prompt()
         let request = CheckInPickerRequest(prompt: prompt)
@@ -481,7 +481,7 @@ struct CheckInPickerRequestTests {
         #expect(request.seeds.map(\.name) == ["The Anchor", "Golden Tap"])
     }
 
-    @Test("From a notification: no Session, no fix — the picker locates itself")
+    @Test("From a notification: no session, no fix — the picker locates itself")
     func fromNotification() {
         let suggestion = Fixture.poi("The Anchor", distance: 40)
         let request = CheckInPickerRequest.notification(suggesting: suggestion)
@@ -639,7 +639,7 @@ struct CheckInPickerRemoteSectionTests {
 
 /// SPEC §1: "Tapping the card opens the check-in picker (§2) to assign — or
 /// change — the Session's venue: the one picker, not a second UI."
-@Suite("Check-in picker — from the live Session card")
+@Suite("Check-in picker — from the live session card")
 struct CheckInPickerSessionOriginTests {
 
     private func target(
@@ -656,7 +656,7 @@ struct CheckInPickerSessionOriginTests {
         )
     }
 
-    @Test("Keyed by the Session, anchored on it, with nothing inferred")
+    @Test("Keyed by the session, anchored on it, with nothing inferred")
     func fromSession() {
         let target = target()
         let request = CheckInPickerRequest(session: target)
@@ -683,13 +683,13 @@ struct CheckInPickerSessionOriginTests {
         #expect(CheckInPickerRequest.notification().offersSuppression)
     }
 
-    @Test("A Session with no located event opens the picker anyway, locating itself")
+    @Test("A session with no located event opens the picker anyway, locating itself")
     func withoutAnAnchor() {
         let request = CheckInPickerRequest(session: target(anchor: nil))
         #expect(request.fix == nil)
     }
 
-    @Test("The question follows the night: 'Where are you?' until the Session closes")
+    @Test("The question follows the night: 'Where are you?' until the session closes")
     func title() {
         let now = Date(timeIntervalSince1970: 1_700_000_000)
 
@@ -703,7 +703,7 @@ struct CheckInPickerSessionOriginTests {
         #expect(CheckInPickerRequest.notification().title(asOf: now) == "Where are you?")
     }
 
-    @Test("The target reads a derived Session, anchor and materialization included")
+    @Test("The target reads a derived session, anchor and materialization included")
     func fromDerivedSession() {
         let located = DrinkEventSnapshot(
             type: .alcoholic,

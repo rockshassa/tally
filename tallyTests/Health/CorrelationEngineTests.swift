@@ -187,7 +187,7 @@ struct CorrelationEngineTests {
         // SPEC §4's example sentence, generated from the fixture.
         #expect(
             insight.detail
-                == "After 3+ drink Sessions, your next-day exercise averages 12 min vs your usual 34."
+                == "After 3+ drink sessions, your next-day exercise averages 12 min vs your usual 34."
         )
         #expect(insight.headline == "Next-day exercise 65% lower")
         #expect(insight.relativeChange < 0)
@@ -245,7 +245,7 @@ struct CorrelationEngineTests {
         #expect(insight.headline == "Next-day exercise 20% lower")
         #expect(
             insight.detail
-                == "After 3+ drink Sessions, your next-day exercise averages 32 min vs your usual 40."
+                == "After 3+ drink sessions, your next-day exercise averages 32 min vs your usual 40."
         )
     }
 
@@ -332,7 +332,7 @@ struct CorrelationEngineTests {
 
     // MARK: - Night bucketing
 
-    @Test("A Session ending after midnight belongs to the night it started")
+    @Test("A session ending after midnight belongs to the night it started")
     func afterMidnightBelongsToThePreviousNight() {
         let engine = engine()
 

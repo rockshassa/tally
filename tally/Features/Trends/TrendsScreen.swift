@@ -180,7 +180,7 @@ public struct TrendsScreen<Insights: View>: View {
                 value: tiles.topVenueName ?? "—",
                 delta: tiles.topVenueName == nil
                     ? "no tagged venues yet"
-                    : (tiles.topVenueSessionCount == 1 ? "1 Session" : "\(tiles.topVenueSessionCount) Sessions"),
+                    : (tiles.topVenueSessionCount == 1 ? "1 session" : "\(tiles.topVenueSessionCount) sessions"),
                 deltaTone: .neutral,
                 valueSize: 13
             )
@@ -243,13 +243,13 @@ public struct TrendsScreen<Insights: View>: View {
             identifier: TrendsA11y.sessionStats
         ) {
             if stats.sessionCount == 0 {
-                TrendsChartNote(text: "No Sessions in the last 90 days.")
+                TrendsChartNote(text: "No sessions in the last 90 days.")
             } else {
                 VStack(spacing: 0) {
                     TrendsStatRow(
-                        label: "Avg drinks per Session",
+                        label: "Avg drinks per session",
                         value: stats.averageAlcoholicPerSession.formatted(.number.precision(.fractionLength(0...1))),
-                        detail: "\(stats.sessionCount) Session\(stats.sessionCount == 1 ? "" : "s")"
+                        detail: "\(stats.sessionCount) session\(stats.sessionCount == 1 ? "" : "s")"
                     )
                     Divider().overlay(TallyColor.line)
                     TrendsStatRow(
@@ -258,7 +258,7 @@ public struct TrendsScreen<Insights: View>: View {
                     )
                     Divider().overlay(TallyColor.line)
                     TrendsStatRow(
-                        label: "Longest Session",
+                        label: "Longest session",
                         value: stats.longest?.headline ?? "—",
                         detail: stats.longest?.detail
                     )
@@ -266,7 +266,7 @@ public struct TrendsScreen<Insights: View>: View {
                     TrendsStatRow(
                         label: "Best paced",
                         value: stats.bestPaced?.headline ?? "—",
-                        detail: stats.bestPaced?.detail ?? "spacers per drink, once a Session has two"
+                        detail: stats.bestPaced?.detail ?? "spacers per drink, once a session has two"
                     )
                 }
             }

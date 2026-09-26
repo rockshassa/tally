@@ -160,7 +160,7 @@ struct OnboardingFlow: View {
             identifierPrefix: A11y.Onboarding.locationPrimer,
             symbolName: "mappin.and.ellipse",
             title: "Know where the night happened",
-            message: "Tally takes a single location fix at the moment you log a drink, so it can tag the venue and group your night into a Session.",
+            message: "Tally takes a single location fix at the moment you log a drink, so it can tag the venue and group your night into a session.",
             bullets: [
                 "One fix per drink — never a trail, never in the background.",
                 "Skip it and logging works exactly the same; events just aren't tagged."

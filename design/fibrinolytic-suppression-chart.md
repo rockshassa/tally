@@ -41,7 +41,7 @@ The opening segment also rests at zero during the model's initial delay. Copy sh
 
 ## Choose the full episode
 
-An episode is a drinking-and-recovery interval, not necessarily one of the app's existing Sessions. Drinks on consecutive days belong to one episode if the previous episode has not returned to modeled baseline.
+An episode is a drinking-and-recovery interval, not necessarily one of the app's existing sessions. Drinks on consecutive days belong to one episode if the previous episode has not returned to modeled baseline.
 
 1. Use alcoholic events with timestamps at or before the current clock. Non-alcoholic and future-dated entries do not start or extend the episode.
 2. Start at the first drink after the preceding completed return to baseline, or the first recorded alcoholic drink if there is no earlier episode.
@@ -80,7 +80,7 @@ Below the chart, show three compact facts: **First drink**, **Peak / Peaked**, a
 
 Keep the latest completed episode on the Tally screen until the later of **24 hours after its last drink** or **24 hours after its modeled return**. A new episode replaces it immediately. This intentionally extends the existing visibility rule so the completed progression can be seen.
 
-After retention expires, hide the card. Keep completed timelines available from Session detail while recovery context is enabled. If several Sessions belong to one recovery episode, each detail screen opens that same complete episode and highlights its own drinks.
+After retention expires, hide the card. Keep completed timelines available from session detail while recovery context is enabled. If several sessions belong to one recovery episode, each detail screen opens that same complete episode and highlights its own drinks.
 
 Recompute after insertion, deletion, undo, and edits to drink timestamp or type, including changes that leave the event count unchanged. Refresh Now when the app becomes active and while the chart is visible. Event changes may merge or split episodes; the resulting boundaries must follow the updated log.
 
@@ -101,7 +101,7 @@ Precompute each drink's compression weight rather than recalculating it for ever
 | `TallyKit/Sources/TallyKit/Recovery/` | Add timeline derivation and tests while preserving raw model behavior. |
 | `tally/Features/Tally/SuppressionCurveCard.swift` | Replace rolling window and summary derivation; render milestones, display values, and expanded interaction. |
 | `tally/Features/Tally/TallyScreen.swift` | Verify increased card height, sheet presentation, and refresh behavior. |
-| Session detail in `tally/Features/History/` | Open completed episodes and highlight the selected Session's drinks. |
+| session detail in `tally/Features/History/` | Open completed episodes and highlight the selected session's drinks. |
 | `TallyWidget/SuppressionCurveView.swift` | Consume the shared timeline; show full shape with Now and a compact baseline caption. |
 | `TallyWidget/TallyWidgetEntry.swift` | Fetch enough history to find the episode start; the current seven-day fetch cannot guarantee this for prolonged episodes. Schedule endpoint refreshes where WidgetKit permits. |
 | `SPEC.md` and recovery explainer | Document the baseline-relative scale, episode definition, and completed-card retention. |
@@ -112,11 +112,11 @@ Deliver the shared timeline and full-range app card first, then expanded/history
 
 - Immediately after the first drink, the chart shows the opening delay, future rise, peak, and complete return to zero, with a projected return time.
 - Opening the app the next morning still shows the same first drink and any peak already passed.
-- An episode longer than 24, 48, or 66 hours is shown completely; continuous drinking across Sessions does not truncate it.
+- An episode longer than 24, 48, or 66 hours is shown completely; continuous drinking across sessions does not truncate it.
 - Another drink before return extends the same episode; a drink after return starts a new one. Temporary baseline dips with a pending rise do not end an episode.
 - Zero on the display corresponds to the existing model threshold. Raw model output and existing suppression-hours results remain unchanged.
 - The end sample is present, the curve visibly rests on zero, and endpoint text agrees with that crossing.
-- Completion remains visible for the specified retention period and is available later from Session detail.
+- Completion remains visible for the specified retention period and is available later from session detail.
 - Undo, deletion, timestamp/type edits, and future-dated events produce the correct timeline. Empty and non-alcoholic-only logs show no chart.
 - Tests cover multiple peaks, capped plateaus, incomplete history, and unavailable endpoint handling, as well as single-drink and multi-day episodes.
 - Visual verification covers small iPhones, large Dynamic Type, VoiceOver, 12/24-hour clocks, midnight, and daylight-saving transitions. Widget and app agree on episode boundaries and endpoint for the same events and clock.
