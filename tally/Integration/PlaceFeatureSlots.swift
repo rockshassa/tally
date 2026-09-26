@@ -13,6 +13,22 @@ final class PlaceFeatureSlots: FeatureSlots {
 
     init(container: ModelContainer, permissions: any PermissionsService) {
         let coordinator = PlaceCoordinator(modelContext: container.mainContext)
+
+        // "Start a Session?" answered in the picker logs the first drink — through
+        // the same path the +1 button takes, so the watch mirror, the pacing
+        // nudge, and Bar Radar's dwell reminder all hear about it.
+        coordinator.firstDrinkLogger = { venue, context in
+            guard let snapshot = try? PhoneConnectivityService.shared.logDrink(
+                type: .alcoholic,
+                timestamp: Date(),
+                source: TallyRuntime.eventSource,
+                venue: venue,
+                in: context
+            ) else { return nil }
+            NotificationService.shared.sessionDidLogDrink(type: .alcoholic, in: context, at: snapshot.timestamp)
+            RadarService.shared.sessionDidLogDrink(at: snapshot.timestamp)
+            return snapshot.id
+        }
         self.coordinator = coordinator
         self.permissions = permissions
 

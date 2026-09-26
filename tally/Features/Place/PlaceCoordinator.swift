@@ -41,6 +41,17 @@ public final class PlaceCoordinator {
     private let deriver: SessionDeriver
     private let memory: CheckInMemory
 
+    /// Logs the drink a "start a Session?" pick opens the Session with, tagged
+    /// to the picked venue, and returns its ID.
+    ///
+    /// The default writes straight to the store, which is all tests need. The
+    /// app swaps in its full log path — watch mirroring, the pacing nudge,
+    /// Bar Radar's dwell cancel — in `PlaceFeatureSlots`, so this feature does
+    /// not have to reach into those services itself.
+    public var firstDrinkLogger: (Venue, ModelContext) -> UUID? = { venue, context in
+        (try? EventStore.logDrink(type: .alcoholic, timestamp: Date(), venue: venue, in: context))?.id
+    }
+
     public init(
         modelContext: ModelContext,
         locationService: (any LocationFixProviding)? = nil,
@@ -313,15 +324,20 @@ public final class PlaceCoordinator {
     }
 
     private func present(_ request: CheckInPickerRequest) {
+        var request = request
+        if request.isFromNotification {
+            request.startsSession = activeSession() == nil
+        }
         pendingPicker = request
     }
 
     /// SPEC §2: "Picking a venue tags the Session and dismisses."
     ///
-    /// One path for both origins. From the check-in sheet that is exactly
-    /// `confirmCheckIn`; from a notification there may be no Session yet, in
-    /// which case the venue is still resolved — the next drink auto-tags to it
-    /// through step 1's geofence check.
+    /// One path for every origin. From the check-in sheet that is exactly
+    /// `confirmCheckIn`. From a notification with no Session running, the pick
+    /// and the first drink are one step: the drink is logged at the venue, so
+    /// the Session starts already tagged — nothing is left waiting on a later
+    /// fix to land inside the venue's radius.
     @discardableResult
     public func resolvePicker(_ request: CheckInPickerRequest, with candidate: VenueCandidate) -> UUID? {
 
@@ -356,6 +372,11 @@ public final class PlaceCoordinator {
 
         if let session = activeSession() {
             try? VenueWriter.tag(eventIDs: session.eventIDs, with: venue, in: modelContext)
+            memory.recordConfirmation(venueID: venue.id, for: session.id)
+        } else if request.startsSession,
+                  let eventID = firstDrinkLogger(venue, modelContext),
+                  let session = currentSession(containing: eventID) {
+            // Later drinks in the outing auto-tag silently (SPEC §2).
             memory.recordConfirmation(venueID: venue.id, for: session.id)
         }
 

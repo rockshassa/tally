@@ -174,11 +174,19 @@ struct CheckInPickerList: View {
                 .buttonStyle(.plain)
             }
 
-            Text(request.title())
-                .font(.system(size: 22, weight: .semibold, design: .serif))
-                .foregroundStyle(PlacePalette.ink)
-                .lineLimit(1)
-                .minimumScaleFactor(0.8)
+            VStack(alignment: .leading, spacing: 3) {
+                Text(request.title())
+                    .font(.system(size: 22, weight: .semibold, design: .serif))
+                    .foregroundStyle(PlacePalette.ink)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+
+                if let detail = request.detail {
+                    Text(detail)
+                        .font(.system(size: 13))
+                        .foregroundStyle(PlacePalette.ink3)
+                }
+            }
 
             Spacer(minLength: 8)
 

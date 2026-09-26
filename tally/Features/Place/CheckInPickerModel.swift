@@ -59,6 +59,15 @@ nonisolated public struct CheckInPickerRequest: Identifiable, Hashable, Sendable
     /// so the list is never blank while MapKit is still answering.
     public let seeds: [VenueCandidate]
 
+    /// A Bar Radar tap-through with no Session running: the notification asked
+    /// "start a Session?", so the pick *is* the answer — it logs the first
+    /// drink at the venue instead of leaving a venue with nothing to tag.
+    ///
+    /// Decided by the coordinator as the picker is presented, not by whoever
+    /// built the request: a cold launch queues the request before anything can
+    /// look at the store.
+    public internal(set) var startsSession = false
+
     public init(
         id: UUID = UUID(),
         origin: Origin,
@@ -149,8 +158,14 @@ nonisolated public struct CheckInPickerRequest: Identifiable, Hashable, Sendable
     /// SPEC §1/§2: the same picker asks a different question depending on
     /// whether the night is still happening.
     public func title(asOf now: Date = Date()) -> String {
+        if startsSession { return "Start a session" }
         guard let target = sessionTarget, !target.isActive(asOf: now) else { return "Where are you?" }
         return "Where was this?"
+    }
+
+    /// Said under the title only when a pick does more than tag a venue.
+    public var detail: String? {
+        startsSession ? "Pick where you are — it logs your first drink there." : nil
     }
 }
 
