@@ -430,8 +430,7 @@ struct CheckInPickerTapThroughTests {
         arguments: [
             RadarPrompt.Kind.arrival,
             .dwell,
-            .discovery,
-            .sessionReminder
+            .discovery
         ]
     )
     func defaultActionRequestsThePicker(kind: RadarPrompt.Kind) async {
@@ -445,13 +444,18 @@ struct CheckInPickerTapThroughTests {
         #expect(requests == 1)
     }
 
-    @Test("The true-up taps through to History, not to the picker (SPEC §2)")
-    func trueUpDoesNotAsk() async {
+    /// The true-up taps through to History; the mid-session reminder asks for
+    /// a drink, not a place, and opens the counter.
+    @Test(
+        "Prompts that are not about where you are never ask for the picker",
+        arguments: [RadarPrompt.Kind.trueUp, .sessionReminder]
+    )
+    func trueUpDoesNotAsk(kind: RadarPrompt.Kind) async {
         let service = self.service()
         var requests = 0
         service.checkInPickerRequestHandler = { _ in requests += 1 }
 
-        service.handleAction(action(prompt(.trueUp), UNNotificationDefaultActionIdentifier))
+        service.handleAction(action(prompt(kind), UNNotificationDefaultActionIdentifier))
         await settle()
 
         #expect(requests == 0)

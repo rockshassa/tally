@@ -195,7 +195,6 @@ public final class RadarCoordinator {
             _ = settings.barRadarEnabled
             _ = settings.barRadarDiscoveryEnabled
             _ = settings.barRadarDwellMinutes
-            _ = settings.sessionReminderMinutes
         } onChange: { [weak self] in
             // `onChange` runs *before* the value lands, so the read has to happen
             // on the next turn of the main actor.

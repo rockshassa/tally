@@ -613,16 +613,6 @@ nonisolated public enum RadarEffect: Hashable, Sendable {
     /// Any logged drink, or the exit event, retracts it.
     case cancelDwell(visitID: UUID)
 
-    /// SPEC §2's mid-Session reminder, due one configured interval after the
-    /// drink that armed it. Re-issued by every subsequent drink, which is why
-    /// the request identifier is per visit rather than per reminder — a second
-    /// one replaces the first in the notification centre.
-    case scheduleSessionReminder(RadarPrompt, at: Date)
-
-    /// SPEC §2: "the geofence exit or 'Not drinking tonight' cancels it", as does
-    /// the next logged drink, which immediately re-arms it from its own timestamp.
-    case cancelSessionReminder(visitID: UUID)
-
     /// SPEC §2: a Session "closes … immediately when a Bar Radar exit event
     /// fires". Persisted so `SessionDeriver` can consume it.
     case recordExit(venueID: UUID, at: Date)

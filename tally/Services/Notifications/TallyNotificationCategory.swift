@@ -75,7 +75,7 @@ public enum TallyNotificationCategory: String, CaseIterable, Identifiable, Codab
         case .barRadarArrival: "Arriving at a bar you go to often."
         case .barRadarDwell: "Still at the bar 45 minutes later, nothing logged."
         case .barRadarDiscovery: "A bar you've never logged, at most three prompts a week."
-        case .sessionReminder: "Mid-session, an hour after your last drink and still at the bar. At most twice a visit."
+        case .sessionReminder: "Mid-session, an hour after your last drink: anything to add? Once per quiet stretch."
         case .sessionTrueUp: "When a session ends: what it counted, and a way to correct it. Once per session."
         case .activityInsight: "A new correlation between drinking and your activity. At most one a week."
         }
@@ -119,8 +119,8 @@ public enum TallyNotificationCategory: String, CaseIterable, Identifiable, Codab
 
     public var quietHoursPolicy: QuietHoursPolicy {
         switch self {
-        // The Bar Radar family, which now includes the mid-Session reminder: it
-        // fires at the bar, mid-outing, or not at all.
+        // The Bar Radar family, plus the mid-session reminder: it fires
+        // mid-outing or not at all, and bar hours are quiet hours.
         case .barRadarArrival, .barRadarDwell, .barRadarDiscovery, .sessionReminder: .ignore
         // The Session true-up is the one Bar Radar prompt that wants *both*, and
         // a category has one policy, so it declares the one it can actually

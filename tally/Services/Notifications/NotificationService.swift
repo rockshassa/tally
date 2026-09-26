@@ -567,7 +567,8 @@ public final class NotificationService: NSObject {
             TallyDefaults.Keys.lastTrendAlertSignature,
             TallyDefaults.Keys.lastStreakNudgeDay,
             TallyDefaults.Keys.lastPacingNudgeSessionID,
-            TallyDefaults.Keys.lastPacingNudgeAt
+            TallyDefaults.Keys.lastPacingNudgeAt,
+            TallyDefaults.Keys.declinedSessionReminderSessionID
         ] {
             TallyDefaults.remove(key)
         }
@@ -585,6 +586,12 @@ public final class NotificationService: NSObject {
     /// Applies a toggle change straight away: schedule what turned on, retract
     /// what turned off.
     public func categoryToggleChanged(_ category: TallyNotificationCategory, context: ModelContext) async {
+        // The mid-session reminder plans itself off the log; it only needs
+        // telling that its toggle moved, in either direction.
+        if category == .sessionReminder {
+            await SessionReminderScheduler.shared.reschedule()
+            return
+        }
         if settings.isEnabled(category) {
             await refresh(context: context)
         } else {

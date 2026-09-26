@@ -68,6 +68,10 @@ public enum TallyDefaults {
         /// SPEC §2's mid-Session reminder: "no drink has been logged for 60 min
         /// (configurable)".
         public static let barRadarSessionReminderMinutes = "tally.barRadar.sessionReminderMinutes"
+
+        /// The session "Not drinking tonight" was tapped on from its reminder —
+        /// no more reminders for it. Owned by `SessionReminderScheduler`.
+        public static let declinedSessionReminderSessionID = "tally.notifications.declinedSessionReminderSessionID"
         public static let barRadarDiscoveryStartMinutes = "tally.barRadar.discoveryStartMinutes"
         public static let barRadarDiscoveryEndMinutes = "tally.barRadar.discoveryEndMinutes"
 

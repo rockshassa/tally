@@ -38,6 +38,9 @@ struct TallyApp: App {
         // bare counter — the inferred venue can be wrong, and the tap is the
         // user asking to look.
         RadarService.checkInPickerRequestHandler = { PlaceCoordinator.present(suggestion: $0) }
+        // SPEC §2's mid-session reminder, for every session — not only those
+        // inside a Bar Radar geofence.
+        SessionReminderScheduler.shared.start(modelContext: container.mainContext)
     }
 
     var body: some Scene {

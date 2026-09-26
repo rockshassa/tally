@@ -48,15 +48,20 @@ enum RadarCopy {
         }
     }
 
-    /// SPEC §2's mid-Session reminder. The one Bar Radar prompt that speaks
-    /// *after* something has been logged, which is why it may ask about "more":
-    /// the Session is a fact by the time this fires, so the offer is to top it up,
+    /// SPEC §2's mid-session reminder. The one prompt that speaks *after*
+    /// something has been logged, which is why it may ask about "more": the
+    /// session is a fact by the time this fires, so the offer is to top it up,
     /// not to start it.
     enum SessionReminder {
-        /// SPEC §5's example: "Still at The Anchor — anything to add?"
+        /// SPEC §5's example: "Still at The Anchor — anything to add?" A session
+        /// with no venue has no place to name, and says so plainly rather than
+        /// printing "Still at ".
         static func title(_ place: String) -> String {
-            NotificationText.venueTitle(prefix: "Still at ", venue: place)
+            place.isEmpty
+                ? untaggedTitle
+                : NotificationText.venueTitle(prefix: "Still at ", venue: place)
         }
+        static let untaggedTitle = "Session in progress"
         static let body = "Anything to add?"
 
         static func text(_ place: String) -> NotificationText {

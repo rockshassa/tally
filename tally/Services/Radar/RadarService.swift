@@ -319,8 +319,7 @@ public final class RadarService {
     private func makeMachine() -> RadarVisitMachine {
         RadarVisitMachine(
             configuration: RadarVisitMachine.Configuration(
-                dwellDelay: TimeInterval(max(1, settings.barRadarDwellMinutes) * 60),
-                sessionReminderDelay: TimeInterval(max(1, settings.sessionReminderMinutes) * 60)
+                dwellDelay: TimeInterval(max(1, settings.barRadarDwellMinutes) * 60)
             )
         )
     }
@@ -369,23 +368,6 @@ public final class RadarService {
 
             case .cancelDwell(let visitID):
                 notifier.cancel(identifiers: [dwellIdentifier(visitID)])
-
-            case .scheduleSessionReminder(var prompt, let date):
-                // The machine builds this one from the visit, which caches the
-                // venue's name — except for a visit persisted by a build that
-                // predates that field. The venue itself still knows it.
-                if prompt.placeName.isEmpty, let venueID = prompt.venueID {
-                    prompt.placeName = resolveTarget(venueID: venueID)?.name ?? ""
-                }
-                // "Still at  — anything to add?" is worse than silence.
-                guard !prompt.placeName.isEmpty else {
-                    record(.other(note: "Venue name unknown"), prompt: prompt)
-                    break
-                }
-                await deliver(prompt, fireDate: date)
-
-            case .cancelSessionReminder(let visitID):
-                notifier.cancel(identifiers: [sessionReminderIdentifier(visitID)])
 
             case .recordExit(let venueID, let at):
                 store.recordExit(venueID: venueID, at: at)
@@ -463,13 +445,6 @@ public final class RadarService {
 
     private func dwellIdentifier(_ visitID: UUID) -> String {
         "\(TallyNotificationCategory.barRadarDwell.identifier).\(visitID.uuidString)"
-    }
-
-    /// One identifier per visit, not per reminder: SPEC §2 allows two per visit
-    /// but only ever one in flight, so the second replaces the first rather than
-    /// stacking beside it. Same scheme as `RadarPrompt.requestIdentifier`.
-    private func sessionReminderIdentifier(_ visitID: UUID) -> String {
-        "\(TallyNotificationCategory.sessionReminder.identifier).\(visitID.uuidString)"
     }
 
     /// SPEC §2: "auto check-in to the venue (it's known — no confirmation sheet
@@ -766,6 +741,11 @@ public final class RadarService {
             logDrink(payload: payload, at: date)
 
         case RadarIdentifiers.notDrinkingAction:
+            // The mid-session reminder belongs to a session, not a visit: it
+            // goes quiet for the rest of that session.
+            if payload.kind == .sessionReminder {
+                SessionReminderScheduler.shared.declineActiveSession(now: date)
+            }
             // SPEC §2: "suppresses all further prompts for this visit".
             guard let visitID = payload.visitID else { return }
             Task { await run(.declined(visitID: visitID, at: date)) }
@@ -808,12 +788,14 @@ public final class RadarService {
     /// SPEC §2: the tap on a Bar Radar prompt "opens the app on the **check-in
     /// picker** … rather than the bare counter".
     ///
-    /// The true-up is the one prompt excluded — its tap-through belongs to the
-    /// Session's timeline in History, and offering to check in somewhere would be
-    /// answering a question about a night that has already ended.
+    /// The true-up is excluded — its tap-through belongs to the session's
+    /// timeline in History, and offering to check in somewhere would be
+    /// answering a question about a night that has already ended. So is the
+    /// mid-session reminder: it asks for a drink, not a place, and its tap
+    /// opens the counter where the next one gets logged.
     private func requestCheckInPicker(for payload: RadarActionPayload) {
         switch payload.kind {
-        case .arrival, .dwell, .discovery, .sessionReminder:
+        case .arrival, .dwell, .discovery:
             // Tier 1 knows a saved venue; discovery only ever has the POI it
             // matched. Either way the picker treats it as a hint, not an answer.
             let suggestion: CheckInPickerSuggestion? =
@@ -821,7 +803,7 @@ public final class RadarService {
                 else if let place = payload.place { .place(place) }
                 else { nil }
             checkInPickerRequestHandler?(suggestion)
-        case .trueUp:
+        case .sessionReminder, .trueUp:
             break
         }
     }
@@ -1002,7 +984,9 @@ public final class RadarService {
 
     // MARK: - Cancellation & erase
 
-    /// Everything the *venue* tiers have pending.
+    /// Everything the *venue* tiers have pending. The mid-session reminder is
+    /// not one of them any more — it belongs to `SessionReminderScheduler` and
+    /// outlives Bar Radar being switched off.
     ///
     /// Session true-ups are deliberately not on this list: `stop()` uses it, and
     /// turning Bar Radar off does not un-close a Session that already happened —
@@ -1012,8 +996,7 @@ public final class RadarService {
         let prefixes = [
             TallyNotificationCategory.barRadarArrival.identifier,
             TallyNotificationCategory.barRadarDwell.identifier,
-            TallyNotificationCategory.barRadarDiscovery.identifier,
-            TallyNotificationCategory.sessionReminder.identifier
+            TallyNotificationCategory.barRadarDiscovery.identifier
         ]
         let pending = await notifier.pendingIdentifiers()
         let ours = pending.filter { identifier in prefixes.contains { identifier.hasPrefix($0) } }
